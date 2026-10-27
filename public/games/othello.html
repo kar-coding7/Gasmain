@@ -150,14 +150,14 @@ function render(prev){
 }
 function newGame(){
   rid++;b=Array(64).fill(0);b[27]=2;b[28]=1;b[35]=1;b[36]=2;turn=1;over=false;busy=false;last=-1;msg="";
-  $("#ov").classList.remove("on");render();say("Giliranmu. Ketuk titik terang untuk menaruh cakram.","you");
+  $("#ov").classList.remove("on");render();say("Giliranmu. Ketuk titik terang untuk menaruh cakram.","you");nrUI();
 }
 function play(p,i){
   const prev=b.slice(),fl=flips(b,i,p).length;
   b=apply(b,i,p);last=i;busy=true;sfx("put");if(fl)setTimeout(()=>sfx("flip"),120);
   render(prev);
   const who=LB[p];msg=`${who} membalik ${fl} cakram.`;
-  setTimeout(advance,650,p);
+  const r0=rid;setTimeout(()=>{if(r0===rid)advance(p)},650);
 }
 function advance(p){
   const my=rid;if(over)return;
@@ -175,18 +175,19 @@ function finish(){
   over=true;busy=true;render();
   const a=count(b,pl),c=count(b,3-pl);
   let T,S;
-  if(a>c){T=ME==="Kamu"?"Kamu menang!":ME+" menang!";S=`Skor ${a} lawan ${c}.`;sfx("win")}
-  else if(a<c){T=LB[3-pl]+" menang";S=`Skor ${a} lawan ${c}. Coba lagi!`;sfx("lose")}
-  else{T="Seri!";S=`Skor sama, ${a} lawan ${c}.`;sfx("draw")}
+  if(a>c){T=ME==="Kamu"||mode==="mp"?"Kamu menang!":ME+" menang!";S=`Skor ${a} lawan ${c}.`;sfx("win")}
+  else if(a<c){T=mode==="mp"?"Kamu kalah!":LB[3-pl]+" menang";S=`Skor ${a} lawan ${c}. Coba lagi!`;sfx("lose")}
+  else{T=mode==="mp"?"Permainan seri!":"Seri!";S=`Skor sama, ${a} lawan ${c}.`;sfx("draw")}
   say(S,a>=c?"you":"foe");$("#ovT").textContent=T;$("#ovS").textContent=S;
-  setTimeout(()=>{if(over)$("#ov").classList.add("on")},900);
+  setTimeout(()=>{if(over){$("#ov").classList.add("on");nrUI()}},900);
 }
 $("#bd").onclick=e=>{
   const t=e.target.closest(".sq");if(!t||over||busy||turn!==pl)return;
   const i=+t.dataset.i;if(!flips(b,i,pl).length)return;play(pl,i);if(mode==="mp")mpSend({t:"mv",i,p:pl,b:enc()});
 };
 $("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newGame()};
-const again=()=>{if(mode==="mp"){mpSend({t:"new"});newGame();busy=pl!==1;render()}else newGame()};
+function nrUI(){const n=$("#nr");if(n)n.disabled=mode==="mp"&&(!$("#ov").classList.contains("on")||!MP.peer)}
+const again=()=>{if(mode==="mp"){if(!over||!MP.peer)return;mpSend({t:"new"});newGame();busy=pl!==1;render()}else newGame()};
 $("#nr").onclick=again;$("#ovB").onclick=again;
 /* ---------- Mabar online ---------- */
 const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
@@ -231,8 +232,8 @@ function beginMp(){
 }
 MP.onMsg=d=>{
   if(hs(d,beginMp))return;if(d.cid!==MP.peer)return;
-  if(d.t==="mv"&&!over){if(b[d.i]||!flips(b,d.i,d.p).length){b=dec(d.b);render();return}play(d.p,d.i)}
-  if(d.t==="new"){newGame();busy=pl!==1;render()}
+  if(d.t==="mv"&&!over&&d.p===3-pl&&Number.isInteger(d.i)&&d.i>=0&&d.i<64&&!b[d.i]&&flips(b,d.i,d.p).length)play(d.p,d.i);
+  if(d.t==="new"&&(over||(!moves(b,1).length&&!moves(b,2).length))){newGame();busy=pl!==1;render()}
 };
 function setMode(m){
   mode=m;mpOff();pl=1;LB[1]=ME;LB[2]="Komputer";
@@ -300,7 +301,7 @@ build();newGame();
       if(on&&!was){
         const t=ovT.textContent.trim().toLowerCase();
         if(!/seri/.test(t)){
-          if(/tenggelam/.test(t))res("lose");
+          if(/tenggelam|kalah/.test(t))res("lose");
           else if(/menang/.test(t))res(/^(kamu|menang)/.test(t)||t.startsWith(String(ME).toLowerCase())?"win":"lose");
         }
       }

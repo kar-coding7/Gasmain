@@ -137,7 +137,7 @@ function aiCol(){
 
 /* tampilan */
 const say=(t,c)=>{$("#st").textContent=t;$("#st").className="status "+c};
-function render(win,ni){
+function render(win,ni){nrUI();
   $("#b7").innerHTML=[...Array(C).keys()].map(c=>`<button class="col" data-c="${c}" aria-label="kolom ${c+1}" ${b[c]||over?"disabled":""}>`+
     [...Array(R).keys()].map(r=>{const i=r*C+c,v=b[i];return `<div class="hole">${v?`<i class="d p${v}${i===ni?" new":""}${win&&win.includes(i)?" w":""}" style="--d:${r+1}"></i>`:""}</div>`}).join("")+`</button>`).join("");
 }
@@ -162,14 +162,16 @@ function play(c,p){
   else{busy=false;say("Giliranmu. Pilih kolom.","you")}
 }
 function newRound(){
-  rid++;const my=rid;b=Array(R*C).fill(0);over=false;busy=false;render();
+  rid++;const my=rid;b=Array(R*C).fill(0);over=false;shown=false;busy=false;render();
   if(mode==="mp"){turn=first?2:1;mpStatus();return}
   if(first){say("Komputer jalan duluan...","foe");busy=true;setTimeout(()=>{if(my===rid)play(aiCol(),2)},650)}
   else say("Giliranmu. Pilih kolom.","you");
 }
 $("#b7").onclick=e=>{const t=e.target.closest(".col");if(!t||over||busy)return;const c=+t.dataset.c;if(drop(b,c)<0)return;if(mode==="mp"){if(turn!==pl)return;mpPlay(c,pl);mpSend({t:"mv",c,p:pl,b:enc()});return}play(c,1)};
 $("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newRound()};
-$("#nr").onclick=()=>{if(mode==="mp")mpSend({t:"new",f:first});newRound()};
+var shown=false;                                       // hasil sudah tampil (tombol ronde baru baru boleh aktif)
+function nrUI(){const n=$("#nr");if(n)n.disabled=mode==="mp"&&(!shown||!MP.peer)}
+$("#nr").onclick=()=>{if(mode==="mp"){if(!shown||!MP.peer)return;mpSend({t:"new",f:first})}newRound()};
 /* ---------- Mabar online ---------- */
 const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
 const info=h=>{$("#mpinfo").innerHTML=h};
@@ -207,20 +209,20 @@ let mode="cpu",pl=1,turn=1;
 const enc=()=>b.join(""),dec=s=>[...s].map(Number),cnt=a=>a.filter(Boolean).length;
 const mpStatus=()=>{if(!over)say(turn===pl?`Giliranmu (${pl===1?"cyan":"pink"}). Pilih kolom.`:"Giliran temanmu...",turn===pl?"you":"foe")};
 function mpPlay(c,p){
-  const r=drop(b,c);if(r<0)return;const i=r*C+c,my2=rid;b[i]=p;render(null,i);setTimeout(()=>sfx(p===1?"a":"b"),330);
+  if(over)return;const r=drop(b,c);if(r<0)return;const i=r*C+c,my2=rid;b[i]=p;render(null,i);setTimeout(()=>sfx(p===1?"a":"b"),330);
   const w=fourAt(b,p),full=b.slice(0,C).every(Boolean);turn=p===1?2:1;
-  if(w||full){over=true;setTimeout(()=>{if(my2!==rid)return;first=1-first;render(w);
-    if(!w){sc.d++;say("Papan penuh. Seri!","you");sfx("draw")}
-    else if(p===pl){sc.w++;say("Kamu menang!","you");sfx("win")}
-    else{sc.l++;say("Temanmu menang.","foe");sfx("lose")}
-    scoreUI()},650);return}
+  if(w||full){over=true;first=1-first;if(!w)sc.d++;else if(p===pl)sc.w++;else sc.l++;
+    setTimeout(()=>{scoreUI();if(my2!==rid)return;shown=true;render(w);
+    if(!w){say("Permainan seri!","you");sfx("draw")}
+    else if(p===pl){say("Kamu menang!","you");sfx("win")}
+    else{say("Kamu kalah!","foe");sfx("lose")}},650);return}
   mpStatus();
 }
 function beginMp(){pl=MP.host?1:2;sc={w:0,d:0,l:0};first=0;scoreUI();$("#mpc").hidden=true;$("#b7").hidden=false;$("#nr").hidden=false;newRound();info(`Tersambung! Kamu ${pl===1?"cyan":"pink"}. Untuk keluar, pilih Lawan komputer.`)}
 MP.onMsg=d=>{
   if(hs(d,beginMp))return;if(d.cid!==MP.peer)return;
-  if(d.t==="mv"&&!over){const nb=dec(d.b);if(cnt(nb)<=cnt(b))return;b=nb;for(let r=0;r<R;r++)if(b[r*C+d.c]){b[r*C+d.c]=0;break}mpPlay(d.c,d.p)}
-  if(d.t==="new"){first=d.f;newRound()}
+  if(d.t==="mv"&&!over&&d.p===turn&&d.p!==pl&&Number.isInteger(d.c)&&d.c>=0&&d.c<C&&drop(b,d.c)>=0)mpPlay(d.c,d.p);
+  if(d.t==="new"&&over){first=d.f?1:0;newRound()}
 };
 function setMode(m){
   mode=m;mpOff();rid++;sc={w:0,d:0,l:0};scoreUI();

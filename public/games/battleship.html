@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Battleship: Lawan Komputer</title>
+<title>GasMain: Battleship</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#150d2e;--panel:#22164f;--cell:#2c1d63;--ink:#f1edff;--mute:#9a8fd0;--cy:#5ef2e0;--pk:#ff4f8b;--ship:#c9bcff;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -80,7 +80,7 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:6px 0 0;line-heig
 <body>
 <div class="wrap">
   <div class="top"><div><a href="/" style="display:block;margin-bottom:6px;color:#9a8fd0;text-decoration:none;font-weight:700">&lsaquo; GasMain</a><h1>Battleship</h1>
-  <p class="sub">Lawan komputer, papan 10×10</p></div><div class="tg"><button class="btn" id="mus"></button><button class="btn" id="sfx"></button></div></div>
+  <p class="sub">Lawan komputer atau teman, papan 10×10</p></div><div class="tg"><button class="btn" id="mus"></button><button class="btn" id="sfx"></button></div></div>
 
   <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
   <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
@@ -431,7 +431,7 @@ newGame();
   document.getElementById("hbtn").onclick=()=>hov.classList.add("on");
   hov.onclick=e=>{if(e.target===hov||e.target.tagName==="BUTTON")hov.classList.remove("on")};
   const KEY="gasmain_streak_"+gm.toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  let S={n:0,b:0};try{S=JSON.parse(localStorage.getItem(KEY))||S}catch(e){}
+  let S={n:0,b:0};try{S=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem("gasmain_streak_battleship-lawan-komputer"))||S}catch(e){}
   const stk=document.getElementById("stk"),num=document.getElementById("stkn");
   const showS=pop=>{stk.hidden=S.n<1;num.textContent=S.n;stk.title="Win streak terbaik: "+S.b;stk.className="stk"+(S.n>=7?" t3":S.n>=3?" t2":"");if(pop){stk.classList.remove("pop");void stk.offsetWidth;stk.classList.add("pop")}};
   const res=r=>{if(r==="win"){S.n++;S.b=Math.max(S.b,S.n)}else if(r==="lose")S.n=0;else return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}showS(true)};

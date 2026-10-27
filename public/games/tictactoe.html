@@ -112,7 +112,7 @@ function lineSvg(l){
   return `<svg class="ln" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="${x1-ux}" y1="${y1-uy}" x2="${x2+ux}" y2="${y2+uy}" pathLength="1"/></svg>`;
 }
 function render(l){
-  $("#b3").innerHTML=b.map((v,i)=>`<button class="c3" data-i="${i}" aria-label="kotak ${i+1}" ${v||over?"disabled":""}>${v==="X"?X:v==="O"?O:""}</button>`).join("")+(l?lineSvg(l):"");
+  $("#b3").innerHTML=b.map((v,i)=>`<button class="c3" data-i="${i}" aria-label="kotak ${i+1}" ${v||over?"disabled":""}>${v==="X"?X:v==="O"?O:""}</button>`).join("")+(l?lineSvg(l):"");nrUI();
 }
 const scoreUI=()=>$("#sc").innerHTML=`<span><b>${sc.w}</b>Menang</span><span><b>${sc.d}</b>Seri</span><span><b>${sc.l}</b>Kalah</span>`;
 function fin(){first=1-first;scoreUI()}
@@ -135,7 +135,8 @@ function newRound(){
 }
 $("#b3").onclick=e=>{const t=e.target.closest(".c3");if(!t||over||busy)return;const i=+t.dataset.i;if(mode==="mp"){if(turn!==mark||b[i])return;mpMove(i,mark);mpSend({t:"mv",i,p:mark,b:enc()});return}if(!b[i])place(i,"X")};
 $("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newRound()};
-$("#nr").onclick=()=>{if(mode==="mp")mpSend({t:"new",f:first});newRound()};
+function nrUI(){const n=$("#nr");if(n)n.disabled=mode==="mp"&&(!over||!MP.peer)}
+$("#nr").onclick=()=>{if(mode==="mp"){if(!over||!MP.peer)return;mpSend({t:"new",f:first})}newRound()};
 /* ---------- Mabar online ---------- */
 const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
 const info=h=>{$("#mpinfo").innerHTML=h};
@@ -173,16 +174,16 @@ let mode="cpu",mark="X",turn="X";
 const enc=()=>b.map(v=>v||".").join(""),dec=s=>[...s].map(c=>c==="."?"":c),cnt=a=>a.filter(Boolean).length;
 const mpStatus=()=>{if(!over)say(turn===mark?`Giliranmu (${mark}).`:`Giliran temanmu (${turn})...`,turn===mark?"you":"foe")};
 function mpMove(i,p){
-  b[i]=p;sfx(p==="X"?"x":"o");const w=win(b);turn=p==="X"?"O":"X";
-  if(w){over=true;render(w.l);const ok=w.p===mark;ok?sc.w++:sc.l++;say(ok?"Kamu menang!":"Temanmu menang.",ok?"you":"foe");setTimeout(()=>sfx(ok?"win":"lose"),300);return fin()}
-  if(b.every(Boolean)){over=true;render();sc.d++;say("Seri. Imbang!","you");setTimeout(()=>sfx("draw"),300);return fin()}
+  if(over)return;b[i]=p;sfx(p==="X"?"x":"o");const w=win(b);turn=p==="X"?"O":"X";
+  if(w){over=true;render(w.l);const ok=w.p===mark;ok?sc.w++:sc.l++;say(ok?"Kamu menang!":"Kamu kalah!",ok?"you":"foe");setTimeout(()=>sfx(ok?"win":"lose"),300);return fin()}
+  if(b.every(Boolean)){over=true;render();sc.d++;say("Permainan seri!","you");setTimeout(()=>sfx("draw"),300);return fin()}
   render();mpStatus();
 }
 function beginMp(){mark=MP.host?"X":"O";sc={w:0,d:0,l:0};first=0;scoreUI();$("#mpc").hidden=true;$("#b3").hidden=false;$("#nr").hidden=false;newRound();info(`Tersambung! Kamu ${mark}. Untuk keluar, pilih Lawan komputer.`)}
 MP.onMsg=d=>{
   if(hs(d,beginMp))return;if(d.cid!==MP.peer)return;
-  if(d.t==="mv"&&!over){const nb=dec(d.b);if(cnt(nb)<=cnt(b))return;b=nb;b[d.i]="";mpMove(d.i,d.p)}
-  if(d.t==="new"){first=d.f;newRound()}
+  if(d.t==="mv"&&!over&&d.p===turn&&d.p!==mark&&Number.isInteger(d.i)&&d.i>=0&&d.i<9&&!b[d.i])mpMove(d.i,d.p);
+  if(d.t==="new"&&over){first=d.f?1:0;newRound()}
 };
 function setMode(m){
   mode=m;mpOff();rid++;sc={w:0,d:0,l:0};scoreUI();
