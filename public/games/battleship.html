@@ -83,7 +83,7 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:6px 0 0;line-heig
   <p class="sub">Lawan komputer, papan 10×10</p></div><div class="tg"><button class="btn" id="mus"></button><button class="btn" id="sfx"></button></div></div>
 
   <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
-  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
   <section id="setup">
     <div class="status you" id="hint"></div>
     <div class="board" id="mine"></div>
@@ -317,6 +317,7 @@ async function mpOpen(code){
   if(!room)throw 0;
   MP.room=await room.join("bs-"+code);
   MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
+  MP.room.on("_p",m=>{const d=m.data;if(!d||d.t!=="left"||!MP.started)return;MP.peer=null;MP.started=false;if(phase==="play"){phase="over";busy=true;pend=null;musicStop();say("Lawan telah meninggalkan permainan.","foe")}else if(phase==="setup"){myR=false;$("#go").disabled=true;hint("Lawan telah meninggalkan permainan.")}});
   MP.iv=setInterval(()=>{if(MP.tick)MP.tick()},2000);
 }
 const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
@@ -334,7 +335,7 @@ $("#mkroom").onclick=async()=>{
   info(`Kode room: <b>${code.toUpperCase()}</b><br>Kirim kode ini ke temanmu, lalu tunggu dia gabung.`);
 };
 $("#joinroom").onclick=async()=>{
-  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  const code=$("#code").value.replace(/\s+/g,"").toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
   mpOff();info("Menghubungkan...");
   try{await mpOpen(code)}catch(e){return fail()}
   let n=0;const t=setInterval(()=>{if(MP.started||++n>12){clearInterval(t);if(!MP.started)info("Room tidak ketemu atau temanmu belum siap. Cek kodenya, lalu coba lagi.")}else mpSend({t:"hi"})},1500);

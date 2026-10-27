@@ -58,7 +58,7 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
   <h1>Connect Four</h1>
   <p class="sub">Kamu cyan, komputer pink. Susun 4 cakram sejajar.</p>
   <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
-  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
   <div class="seg" id="seg"><button class="btn" data-l="0">Santai</button><button class="btn on" data-l="1">Sedang</button><button class="btn" data-l="2">Jago</button></div>
   <div class="sc" id="sc"></div>
   <div class="status you" id="st"></div>
@@ -179,6 +179,7 @@ async function mpOpen(code){
   if(!room)throw 0;
   MP.room=await room.join("c4-"+code);
   MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
+  MP.room.on("_p",m=>{const d=m.data;if(!d||d.t!=="left"||!MP.started)return;const was=over;over=true;busy=true;render();MP.peer=null;MP.started=false;$("#nr").hidden=true;if(!was)say("Lawan telah meninggalkan permainan.","foe")});
   MP.iv=setInterval(()=>{if(MP.tick)MP.tick()},2000);
 }
 const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
@@ -196,7 +197,7 @@ $("#mkroom").onclick=async()=>{
   info(`Kode room: <b>${code.toUpperCase()}</b><br>Kirim kode ini ke temanmu, lalu tunggu dia gabung.`);
 };
 $("#joinroom").onclick=async()=>{
-  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  const code=$("#code").value.replace(/\s+/g,"").toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
   mpOff();info("Menghubungkan...");
   try{await mpOpen(code)}catch(e){return fail()}
   let n=0;const t=setInterval(()=>{if(MP.started||++n>12){clearInterval(t);if(!MP.started)info("Room tidak ketemu atau temanmu belum siap. Cek kodenya, lalu coba lagi.")}else mpSend({t:"hi"})},1500);
