@@ -1,0 +1,8 @@
+{
+  "name": "gasmain-online",
+  "version": "1.0.0",
+  "description": "GasMain: kumpulan game papan dan kartu dengan mabar online",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
