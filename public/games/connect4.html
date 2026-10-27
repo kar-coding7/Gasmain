@@ -49,7 +49,11 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
 .r input{font:inherit;font-weight:700;flex:1;min-width:0;background:var(--bg);color:var(--ink);border:2px solid #ffffff22;border-radius:12px;padding:10px 12px;letter-spacing:3px;text-transform:lowercase}
 .mpinfo{color:var(--mute);line-height:1.45;font-size:14px}
 .mpinfo b{color:var(--cy);font-size:24px;letter-spacing:4px}
-.rbt{display:flex;gap:10px}.rbt .btn,.rbt .btn.main{flex:1;width:auto;margin-top:0}
+.ov{position:fixed;inset:0;background:#0b0620ee;display:none;place-items:center;padding:20px;z-index:9}
+.ov.on{display:grid}
+.card{background:var(--panel);border-radius:24px;padding:26px;text-align:center;max-width:340px;width:100%}
+.card h2{font-size:34px;margin:0 0 8px;letter-spacing:-1px;line-height:1.05}
+.card p{color:var(--mute);margin:0 0 18px}
 </style>
 <script src="/mp.js"></script>
 </head>
@@ -59,14 +63,14 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
   <h1>Connect Four</h1>
   <p class="sub">Kamu cyan, komputer pink. Susun 4 cakram sejajar.</p>
   <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
-  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
   <div class="seg" id="seg"><button class="btn" data-l="0">Santai</button><button class="btn on" data-l="1">Sedang</button><button class="btn" data-l="2">Jago</button></div>
   <div class="sc" id="sc"></div>
   <div class="status you" id="st"></div>
   <div class="b7" id="b7"></div>
-  <button class="btn main" id="nr">Ronde baru</button>
-  <div id="rbar" hidden><div class="status you" id="rmsg"></div><div class="rbt"><button class="btn main" id="rag">Main lagi</button><button class="btn" id="rex">Keluar</button></div></div>
+  
 </div>
+<div class="ov" id="ov"><div class="card"><h2 id="ovT"></h2><p id="ovS"></p><button class="btn main" id="ovB" style="margin-top:0">Main lagi</button></div></div>
 <script>
 const ME=(()=>{let n="";try{n=(localStorage.getItem("gasmain_nama")||decodeURIComponent(location.hash.slice(1)).replace(/_/g," ")).trim().slice(0,14)}catch(e){}
   if(n){const s=document.createElement("span");s.textContent=n;s.style.cssText="font-weight:800;color:#5ef2e0;background:#ffffff14;padding:5px 12px;border-radius:99px;font-size:13px;max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
@@ -139,7 +143,7 @@ function aiCol(){
 
 /* tampilan */
 const say=(t,c)=>{$("#st").textContent=t;$("#st").className="status "+c};
-function render(win,ni){nrUI();
+function render(win,ni){
   $("#b7").innerHTML=[...Array(C).keys()].map(c=>`<button class="col" data-c="${c}" aria-label="kolom ${c+1}" ${b[c]||over?"disabled":""}>`+
     [...Array(R).keys()].map(r=>{const i=r*C+c,v=b[i];return `<div class="hole">${v?`<i class="d p${v}${i===ni?" new":""}${win&&win.includes(i)?" w":""}" style="--d:${r+1}"></i>`:""}</div>`}).join("")+`</button>`).join("");
 }
@@ -156,29 +160,21 @@ function play(c,p){
       if(!w){sc.d++;say("Papan penuh. Seri!","you");sfx("draw")}
       else if(p===1){sc.w++;say("Kamu menang!","you");sfx("win")}
       else{sc.l++;say("Komputer menang. Mau balas?","foe");sfx("lose")}
-      scoreUI();
-    },650);
+      scoreUI();showEnd(w,p);},650);
     return;
   }
   if(p===1){say("Komputer lagi mikir...","foe");busy=true;setTimeout(()=>{if(my===rid)play(aiCol(),2)},750)}
   else{busy=false;say("Giliranmu. Pilih kolom.","you")}
 }
 function newRound(){
-  rid++;const my=rid;b=Array(R*C).fill(0);over=false;shown=false;busy=false;render();
+  $("#ov").classList.remove("on");rid++;const my=rid;b=Array(R*C).fill(0);over=false;busy=false;render();
   if(mode==="mp"){turn=first?2:1;mpStatus();return}
   if(first){say("Komputer jalan duluan...","foe");busy=true;setTimeout(()=>{if(my===rid)play(aiCol(),2)},650)}
   else say("Giliranmu. Pilih kolom.","you");
 }
 $("#b7").onclick=e=>{const t=e.target.closest(".col");if(!t||over||busy)return;const c=+t.dataset.c;if(drop(b,c)<0)return;if(mode==="mp"){if(turn!==pl)return;mpPlay(c,pl);mpSend({t:"mv",c,p:pl,b:enc()});return}play(c,1)};
-$("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newRound()};
-var shown=false;                                       // hasil sudah tampil (tombol ronde baru baru boleh aktif)
-function nrUI(){const n=$("#nr");if(n)n.disabled=mode==="mp"&&(!shown||!MP.peer)}
-$("#nr").onclick=()=>{if(mode==="mp"){if(!shown||!MP.peer)return;mpSend({t:"new",f:first})}newRound()};
-function rUI(){const bx=$("#rbar");if(!bx)return;const r=MP.r;bx.hidden=!(mode==="mp"&&r);if(bx.hidden)return;const m=$("#rmsg");m.className="status "+r.c;m.innerHTML=r.t+(MP.peer?(MP.mine?"<br><small>Menunggu lawan menekan Main lagi...</small>":MP.theirs?"<br><small>Lawan ingin main lagi.</small>":""):"");const g=$("#rag");g.hidden=!MP.peer;g.disabled=!!MP.mine;g.textContent=MP.mine?"Menunggu...":"Main lagi"}
-function mpGo(){if(MP.mine&&MP.theirs){MP.mine=MP.theirs=false;MP.r=null;rUI();newRound()}}
-$("#rag").onclick=()=>{if(mode!=="mp"||!MP.r||!MP.peer||MP.mine||!over)return;MP.mine=true;mpSend({t:"again"});mpGo();rUI()};
-async function exitRoom(){try{if(MP.room)await Promise.race([MP.room.leave(),new Promise(r=>setTimeout(r,600))])}catch(e){}mpOff();location.href="/"}
-$("#rex").onclick=exitRoom;
+$("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;if(!over&&b.some(Boolean)){say("Selesaikan ronde ini dulu untuk ganti level.","you");return}lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newRound()};
+$("#ovB").onclick=()=>{if(!over)return;if(mode==="mp")mpSend({t:"new",f:first});newRound()};
 /* ---------- Mabar online ---------- */
 const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
 const info=h=>{$("#mpinfo").innerHTML=h};
@@ -188,11 +184,10 @@ async function mpOpen(code){
   if(!room)throw 0;
   MP.room=await room.join("c4-"+code);
   MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
-  MP.room.on("_p",m=>{const d=m.data;if(!d||d.t!=="left"||!MP.started)return;const was=over;over=true;busy=true;render();MP.peer=null;MP.started=false;$("#nr").hidden=true;if(!MP.r)MP.r={t:"Lawan telah meninggalkan permainan.",c:"foe"};MP.mine=MP.theirs=false;rUI();if(!was)say("Lawan telah meninggalkan permainan.","foe")});
   MP.iv=setInterval(()=>{if(MP.tick)MP.tick()},2000);
 }
 const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
-function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false;MP.r=null;MP.mine=MP.theirs=false}
+function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false}
 function hs(d,begin){
   if(d.t==="hi"){if(!MP.host)return true;if(MP.peer&&MP.peer!==d.cid){mpSend({t:"full",to:d.cid});return true}MP.peer=d.cid;mpSend({t:"start",to:d.cid});if(!MP.started){MP.started=true;begin()}return true}
   if(d.t==="start"){if(MP.host||d.to!==MP.cid)return true;MP.peer=d.cid;if(!MP.started){MP.started=true;begin()}return true}
@@ -206,7 +201,7 @@ $("#mkroom").onclick=async()=>{
   info(`Kode room: <b>${code.toUpperCase()}</b><br>Kirim kode ini ke temanmu, lalu tunggu dia gabung.`);
 };
 $("#joinroom").onclick=async()=>{
-  const code=$("#code").value.replace(/\s+/g,"").toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
   mpOff();info("Menghubungkan...");
   try{await mpOpen(code)}catch(e){return fail()}
   let n=0;const t=setInterval(()=>{if(MP.started||++n>12){clearInterval(t);if(!MP.started)info("Room tidak ketemu atau temanmu belum siap. Cek kodenya, lalu coba lagi.")}else mpSend({t:"hi"})},1500);
@@ -215,29 +210,41 @@ $("#joinroom").onclick=async()=>{
 let mode="cpu",pl=1,turn=1;
 const enc=()=>b.join(""),dec=s=>[...s].map(Number),cnt=a=>a.filter(Boolean).length;
 const mpStatus=()=>{if(!over)say(turn===pl?`Giliranmu (${pl===1?"cyan":"pink"}). Pilih kolom.`:"Giliran temanmu...",turn===pl?"you":"foe")};
+function showEnd(w,p,forced){
+  const my=rid;let T,S;
+  if(forced==="win"){T="Kamu menang!";S="Temanmu keluar dari permainan."}
+  else if(!w){T="Seri!";S="Papan penuh, tidak ada pemenang."}
+  else if(p===(mode==="mp"?pl:1)){T="Kamu menang!";S="Empat cakrammu sejajar."}
+  else{T="Kamu kalah";S=(mode==="mp"?"Temanmu":"Komputer")+" berhasil menyusun empat sejajar."}
+  setTimeout(()=>{if(over&&my===rid){$("#ovT").textContent=T;$("#ovS").textContent=S;$("#ov").classList.add("on")}},500);
+}
 function mpPlay(c,p){
-  if(over)return;const r=drop(b,c);if(r<0)return;const i=r*C+c,my2=rid;b[i]=p;render(null,i);setTimeout(()=>sfx(p===1?"a":"b"),330);
+  const r=drop(b,c);if(r<0)return;const i=r*C+c,my2=rid;b[i]=p;render(null,i);setTimeout(()=>sfx(p===1?"a":"b"),330);
   const w=fourAt(b,p),full=b.slice(0,C).every(Boolean);turn=p===1?2:1;
-  if(w||full){over=true;first=1-first;if(!w)sc.d++;else if(p===pl)sc.w++;else sc.l++;
-    setTimeout(()=>{scoreUI();if(my2!==rid)return;shown=true;render(w);
-    if(!w){say("Permainan seri!","you");sfx("draw")}
-    else if(p===pl){say("Kamu menang!","you");sfx("win")}
-    else{say("Kamu kalah!","foe");sfx("lose")}
-    MP.r=!w?{t:"Permainan seri!",c:"you"}:p===pl?{t:"Kamu menang!",c:"you"}:{t:"Kamu kalah!",c:"foe"};rUI()},650);return}
+  if(w||full){over=true;setTimeout(()=>{if(my2!==rid)return;first=1-first;render(w);
+    if(!w){sc.d++;say("Papan penuh. Seri!","you");sfx("draw")}
+    else if(p===pl){sc.w++;say("Kamu menang!","you");sfx("win")}
+    else{sc.l++;say("Temanmu menang.","foe");sfx("lose")}
+    scoreUI();showEnd(w,p)},650);return}
   mpStatus();
 }
-function beginMp(){pl=MP.host?1:2;sc={w:0,d:0,l:0};first=0;scoreUI();$("#mpc").hidden=true;$("#b7").hidden=false;$("#nr").hidden=true;MP.r=null;MP.mine=MP.theirs=false;rUI();newRound();info(`Tersambung! Kamu ${pl===1?"cyan":"pink"}. Untuk keluar, pilih Lawan komputer.`)}
+function beginMp(){pl=MP.host?1:2;sc={w:0,d:0,l:0};first=0;scoreUI();$("#mpc").hidden=true;$("#b7").hidden=false;newRound();info(`Tersambung! Kamu ${pl===1?"cyan":"pink"}. Untuk keluar, pilih Lawan komputer.`)}
 MP.onMsg=d=>{
   if(hs(d,beginMp))return;if(d.cid!==MP.peer)return;
-  if(d.t==="mv"&&!over&&d.p===turn&&d.p!==pl&&Number.isInteger(d.c)&&d.c>=0&&d.c<C&&drop(b,d.c)>=0)mpPlay(d.c,d.p);
-  if(d.t==="again"&&over){MP.theirs=true;mpGo();rUI()}
+  if(d.t==="mv"&&!over){const nb=dec(d.b);if(cnt(nb)<=cnt(b))return;b=nb;for(let r=0;r<R;r++)if(b[r*C+d.c]){b[r*C+d.c]=0;break}mpPlay(d.c,d.p)}
+  if(d.t==="new"&&over){first=d.f;newRound()}
+  if(d.t==="quit"&&!over){over=true;busy=false;sc.w++;scoreUI();render(null);say("Temanmu keluar. Kamu menang!","you");sfx("win");showEnd(null,0,"win")}
 };
 function setMode(m){
-  mode=m;mpOff();rUI();rid++;sc={w:0,d:0,l:0};scoreUI();
+  if(m===mode)return;
+  const inGame=!over&&b&&b.some(Boolean);
+  if(mode==="cpu"&&inGame){say("Selesaikan ronde ini dulu sebelum pindah mode.","you");return}
+  if(mode==="mp"&&MP.started&&inGame){mpSend({t:"quit"});if(window.gmResult)window.gmResult("lose")}
+  mode=m;mpOff();rid++;sc={w:0,d:0,l:0};scoreUI();
   document.querySelectorAll("#md .btn").forEach(n=>n.classList.toggle("on",n.dataset.m===m));
   $("#mp").hidden=m!=="mp";$("#seg").hidden=m==="mp";$("#mpc").hidden=false;info("");
-  if(m==="mp"){$("#b7").hidden=true;$("#nr").hidden=true;say("Buat room atau gabung pakai kode dari temanmu.","you")}
-  else{$("#b7").hidden=false;$("#nr").hidden=false;newRound()}
+  if(m==="mp"){$("#b7").hidden=true;say("Buat room atau gabung pakai kode dari temanmu.","you")}
+  else{$("#b7").hidden=false;newRound()}
 }
 $("#md").onclick=e=>{const t=e.target.closest(".btn");if(t)setMode(t.dataset.m)};
 scoreUI();newRound();
@@ -289,7 +296,7 @@ scoreUI();newRound();
   const stk=document.getElementById("stk"),num=document.getElementById("stkn");
   const showS=pop=>{stk.hidden=S.n<1;num.textContent=S.n;stk.title="Win streak terbaik: "+S.b;stk.className="stk"+(S.n>=7?" t3":S.n>=3?" t2":"");if(pop){stk.classList.remove("pop");void stk.offsetWidth;stk.classList.add("pop")}};
   const res=r=>{if(r==="win"){S.n++;S.b=Math.max(S.b,S.n)}else if(r==="lose")S.n=0;else return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}showS(true)};
-  showS(false);
+  window.gmResult=res;showS(false);
   const ov=document.getElementById("ov"),ovT=document.getElementById("ovT");
   if(ov&&ovT){
     let was=false;
@@ -298,7 +305,7 @@ scoreUI();newRound();
       if(on&&!was){
         const t=ovT.textContent.trim().toLowerCase();
         if(!/seri/.test(t)){
-          if(/tenggelam/.test(t))res("lose");
+          if(/tenggelam|kalah/.test(t))res("lose");
           else if(/menang/.test(t))res(/^(kamu|menang)/.test(t)||t.startsWith(String(ME).toLowerCase())?"win":"lose");
         }
       }
