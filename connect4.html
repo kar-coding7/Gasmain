@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GasMain: Connect Four</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#150d2e;--panel:#22164f;--ink:#f1edff;--mute:#9a8fd0;--cy:#5ef2e0;--pk:#ff4f8b;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:radial-gradient(800px 420px at 85% -8%,#4a2bb066,transparent),radial-gradient(600px 400px at -10% 105%,#ff4f8b22,transparent),var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;min-height:100vh}
+.wrap{max-width:460px;margin:0 auto;padding:14px 14px 44px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.back{color:var(--mute);text-decoration:none;font-weight:700}
+h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
+.sub{color:var(--mute);margin:6px 0 14px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:14px;padding:12px 14px;background:var(--panel);color:var(--ink);cursor:pointer}
+.btn.sm{padding:7px 12px;font-size:12px;border-radius:99px}
+.btn.off{opacity:.5}
+.btn.main{background:var(--cy);color:#06241f;width:100%;font-size:17px;padding:15px;margin-top:16px}
+.seg{display:flex;gap:6px}
+.seg .btn{flex:1;padding:10px 6px;font-size:14px}
+.seg .btn.on{background:var(--cy);color:#06241f}
+.sc{display:flex;gap:8px;margin:12px 0}
+.sc span{flex:1;text-align:center;background:var(--panel);border-radius:12px;padding:8px;font-size:13px;color:var(--mute)}
+.sc b{display:block;font-size:24px;color:var(--ink);line-height:1.1}
+.status{padding:12px 14px;border-radius:14px;background:var(--panel);font-weight:700;margin:0 0 14px;min-height:48px;line-height:1.35}
+.status.you{box-shadow:inset 0 0 0 2px var(--cy)}
+.status.foe{box-shadow:inset 0 0 0 2px var(--pk)}
+.b7{display:grid;grid-template-columns:repeat(7,1fr);gap:1.4%;background:#3a2590;padding:2.2%;border-radius:22px;box-shadow:0 8px 0 #24165f}
+.col{display:flex;flex-direction:column;gap:6px;background:transparent;border:0;padding:3px;border-radius:14px;cursor:pointer;min-width:0}
+.col:not(:disabled):hover{background:#ffffff1c}
+.col:disabled{cursor:default}
+.hole{aspect-ratio:1;border-radius:50%;background:var(--bg);position:relative;box-shadow:inset 0 3px 6px #0008}
+.d{position:absolute;inset:6%;border-radius:50%}
+.p1{background:radial-gradient(circle at 35% 30%,#c4fff8,var(--cy) 60%)}
+.p2{background:radial-gradient(circle at 35% 30%,#ffb8d0,var(--pk) 60%)}
+.d.new{animation:drop .5s ease-in}
+@keyframes drop{0%{transform:translateY(calc(var(--d)*-108%))}70%{transform:translateY(0)}85%{transform:translateY(-8%)}100%{transform:translateY(0)}}
+.d.w{box-shadow:0 0 0 3px #fff,0 0 16px 3px #fff}
+@media (prefers-reduced-motion:reduce){.d.new{animation:none}}
+[hidden]{display:none!important}
+#md{margin-bottom:10px}
+.mpbox{background:var(--panel);border-radius:16px;padding:12px;margin:10px 0 14px}
+#mpc{display:flex;flex-direction:column;gap:8px}
+#mpc:not([hidden])+.mpinfo:not(:empty){margin-top:10px}
+.r{display:flex;gap:8px}
+.r input{font:inherit;font-weight:700;flex:1;min-width:0;background:var(--bg);color:var(--ink);border:2px solid #ffffff22;border-radius:12px;padding:10px 12px;letter-spacing:3px;text-transform:lowercase}
+.mpinfo{color:var(--mute);line-height:1.45;font-size:14px}
+.mpinfo b{color:var(--cy);font-size:24px;letter-spacing:4px}
+</style>
+<script src="/mp.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a class="back" href="/">&lsaquo; GasMain</a><button class="btn sm" id="sfx"></button></div>
+  <h1>Connect Four</h1>
+  <p class="sub">Kamu cyan, komputer pink. Susun 4 cakram sejajar.</p>
+  <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
+  <div class="seg" id="seg"><button class="btn" data-l="0">Santai</button><button class="btn on" data-l="1">Sedang</button><button class="btn" data-l="2">Jago</button></div>
+  <div class="sc" id="sc"></div>
+  <div class="status you" id="st"></div>
+  <div class="b7" id="b7"></div>
+  <button class="btn main" id="nr">Ronde baru</button>
+</div>
+<script>
+const ME=(()=>{let n="";try{n=(localStorage.getItem("gasmain_nama")||decodeURIComponent(location.hash.slice(1)).replace(/_/g," ")).trim().slice(0,14)}catch(e){}
+  if(n){const s=document.createElement("span");s.textContent=n;s.style.cssText="font-weight:800;color:#5ef2e0;background:#ffffff14;padding:5px 12px;border-radius:99px;font-size:13px;max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    const top=document.querySelector(".top"),tg=top.querySelector(".tg");
+    if(tg)tg.insertBefore(s,tg.firstChild);else top.insertBefore(s,top.querySelector(".btn"))}
+  return n||"Kamu"})();
+const $=s=>document.querySelector(s);
+const R=6,C=7,ORD=[3,2,4,1,5,0,6];
+let b,over,busy,lvl=1,first=0,rid=0,sc={w:0,d:0,l:0};
+
+/* suara */
+let AC,sOn=true;
+function sfx(n){
+  if(!sOn)return;const K=window.AudioContext||window.webkitAudioContext;if(!K)return;
+  AC=AC||new K();if(AC.state==="suspended")AC.resume();const t=AC.currentTime;
+  const T=(f,s,d,ty="triangle",v=.25)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(.0001,t+s);g.gain.linearRampToValueAtTime(v,t+s+.01);g.gain.exponentialRampToValueAtTime(.0001,t+s+d);o.connect(g);g.connect(AC.destination);o.start(t+s);o.stop(t+s+d+.05)};
+  ({a:()=>T(260,0,.14,"sine",.4),b:()=>T(190,0,.14,"sine",.4),win:()=>[523,659,784,1047].forEach((f,k)=>T(f,k*.12,.4)),lose:()=>[392,330,262,196].forEach((f,k)=>T(f,k*.2,.5,"sawtooth",.15)),draw:()=>{T(330,0,.25);T(330,.25,.35)}})[n]();
+}
+const lab=()=>{$("#sfx").textContent="Efek "+(sOn?"nyala":"mati");$("#sfx").classList.toggle("off",!sOn)};
+$("#sfx").onclick=()=>{sOn=!sOn;lab()};lab();
+
+/* logika */
+const drop=(b,c)=>{for(let r=R-1;r>=0;r--)if(!b[r*C+c])return r;return -1};
+function fourAt(b,p){
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    if(b[r*C+c]!==p)continue;
+    for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){
+      const cs=[];
+      for(let k=0;k<4;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>=R||cc<0||cc>=C||b[rr*C+cc]!==p)break;cs.push(rr*C+cc)}
+      if(cs.length===4)return cs;
+    }
+  }
+  return null;
+}
+function score(b){
+  let s=0;for(let r=0;r<R;r++){if(b[r*C+3]===2)s+=3;else if(b[r*C+3]===1)s-=3}
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++)for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){
+    let a=0,o=0,e=0,ok=true;
+    for(let k=0;k<4;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>=R||cc<0||cc>=C){ok=false;break}const v=b[rr*C+cc];v===2?a++:v===1?o++:e++}
+    if(!ok||(a&&o))continue;
+    if(a===3)s+=6;else if(a===2)s+=2;if(o===3)s-=8;else if(o===2)s-=2;
+  }
+  return s;
+}
+function mm(b,d,al,be,max){
+  if(fourAt(b,2))return 100000+d;if(fourAt(b,1))return -100000-d;
+  const mv=ORD.filter(c=>!b[c]);if(!mv.length)return 0;if(d===0)return score(b);
+  let v=max?-Infinity:Infinity;
+  for(const c of mv){
+    const i=drop(b,c)*C+c;b[i]=max?2:1;const s=mm(b,d-1,al,be,!max);b[i]=0;
+    if(max){v=Math.max(v,s);al=Math.max(al,v)}else{v=Math.min(v,s);be=Math.min(be,v)}
+    if(al>=be)break;
+  }
+  return v;
+}
+function aiCol(){
+  const mv=ORD.filter(c=>!b[c]),rnd=a=>a[Math.floor(Math.random()*a.length)];
+  const wins=(c,p)=>{const i=drop(b,c)*C+c;b[i]=p;const w=!!fourAt(b,p);b[i]=0;return w};
+  if(lvl===0)return rnd(mv);
+  const w=mv.find(c=>wins(c,2));if(w!==undefined)return w;
+  const k=mv.find(c=>wins(c,1));if(k!==undefined&&(lvl===2||Math.random()<.8))return k;
+  if(lvl===1)return mv[Math.floor(Math.random()*Math.min(3,mv.length))];
+  let best=-Infinity,pick=[];
+  for(const c of mv){
+    const i=drop(b,c)*C+c;b[i]=2;const s=mm(b,5,-Infinity,Infinity,false);b[i]=0;
+    if(s>best){best=s;pick=[c]}else if(s===best)pick.push(c);
+  }
+  return rnd(pick);
+}
+
+/* tampilan */
+const say=(t,c)=>{$("#st").textContent=t;$("#st").className="status "+c};
+function render(win,ni){
+  $("#b7").innerHTML=[...Array(C).keys()].map(c=>`<button class="col" data-c="${c}" aria-label="kolom ${c+1}" ${b[c]||over?"disabled":""}>`+
+    [...Array(R).keys()].map(r=>{const i=r*C+c,v=b[i];return `<div class="hole">${v?`<i class="d p${v}${i===ni?" new":""}${win&&win.includes(i)?" w":""}" style="--d:${r+1}"></i>`:""}</div>`}).join("")+`</button>`).join("");
+}
+const scoreUI=()=>$("#sc").innerHTML=`<span><b>${sc.w}</b>Menang</span><span><b>${sc.d}</b>Seri</span><span><b>${sc.l}</b>Kalah</span>`;
+function play(c,p){
+  const my=rid,r=drop(b,c),i=r*C+c;b[i]=p;render(null,i);
+  setTimeout(()=>sfx(p===1?"a":"b"),330);
+  const w=fourAt(b,p),full=b.slice(0,C).every(Boolean);
+  if(w||full){
+    over=true;busy=false;
+    setTimeout(()=>{
+      if(my!==rid)return;
+      first=1-first;render(w);
+      if(!w){sc.d++;say("Papan penuh. Seri!","you");sfx("draw")}
+      else if(p===1){sc.w++;say("Kamu menang!","you");sfx("win")}
+      else{sc.l++;say("Komputer menang. Mau balas?","foe");sfx("lose")}
+      scoreUI();
+    },650);
+    return;
+  }
+  if(p===1){say("Komputer lagi mikir...","foe");busy=true;setTimeout(()=>{if(my===rid)play(aiCol(),2)},750)}
+  else{busy=false;say("Giliranmu. Pilih kolom.","you")}
+}
+function newRound(){
+  rid++;const my=rid;b=Array(R*C).fill(0);over=false;busy=false;render();
+  if(mode==="mp"){turn=first?2:1;mpStatus();return}
+  if(first){say("Komputer jalan duluan...","foe");busy=true;setTimeout(()=>{if(my===rid)play(aiCol(),2)},650)}
+  else say("Giliranmu. Pilih kolom.","you");
+}
+$("#b7").onclick=e=>{const t=e.target.closest(".col");if(!t||over||busy)return;const c=+t.dataset.c;if(drop(b,c)<0)return;if(mode==="mp"){if(turn!==pl)return;mpPlay(c,pl);mpSend({t:"mv",c,p:pl,b:enc()});return}play(c,1)};
+$("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newRound()};
+$("#nr").onclick=()=>{if(mode==="mp")mpSend({t:"new",f:first});newRound()};
+/* ---------- Mabar online ---------- */
+const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
+const info=h=>{$("#mpinfo").innerHTML=h};
+const genCode=()=>Array.from({length:5},()=>"abcdefghjkmnpqrstuvwxyz23456789"[Math.floor(Math.random()*31)]).join("");
+async function mpOpen(code){
+  const room=typeof claude==="undefined"?null:await Promise.race([claude.use("room"),new Promise(r=>setTimeout(()=>r(null),8000))]);
+  if(!room)throw 0;
+  MP.room=await room.join("c4-"+code);
+  MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
+  MP.iv=setInterval(()=>{if(MP.tick)MP.tick()},2000);
+}
+const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
+function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false}
+function hs(d,begin){
+  if(d.t==="hi"){if(!MP.host)return true;if(MP.peer&&MP.peer!==d.cid){mpSend({t:"full",to:d.cid});return true}MP.peer=d.cid;mpSend({t:"start",to:d.cid});if(!MP.started){MP.started=true;begin()}return true}
+  if(d.t==="start"){if(MP.host||d.to!==MP.cid)return true;MP.peer=d.cid;if(!MP.started){MP.started=true;begin()}return true}
+  if(d.t==="full"){if(d.to===MP.cid)info("Room ini sudah penuh.");return true}
+  return false;
+}
+const fail=()=>info("Tidak bisa terhubung ke server mabar. Muat ulang halaman, lalu coba lagi.");
+$("#mkroom").onclick=async()=>{
+  mpOff();MP.host=true;info("Menghubungkan...");const code=genCode();
+  try{await mpOpen(code)}catch(e){MP.host=false;return fail()}
+  info(`Kode room: <b>${code.toUpperCase()}</b><br>Kirim kode ini ke temanmu, lalu tunggu dia gabung.`);
+};
+$("#joinroom").onclick=async()=>{
+  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  mpOff();info("Menghubungkan...");
+  try{await mpOpen(code)}catch(e){return fail()}
+  let n=0;const t=setInterval(()=>{if(MP.started||++n>12){clearInterval(t);if(!MP.started)info("Room tidak ketemu atau temanmu belum siap. Cek kodenya, lalu coba lagi.")}else mpSend({t:"hi"})},1500);
+  mpSend({t:"hi"});
+};
+let mode="cpu",pl=1,turn=1;
+const enc=()=>b.join(""),dec=s=>[...s].map(Number),cnt=a=>a.filter(Boolean).length;
+const mpStatus=()=>{if(!over)say(turn===pl?`Giliranmu (${pl===1?"cyan":"pink"}). Pilih kolom.`:"Giliran temanmu...",turn===pl?"you":"foe")};
+function mpPlay(c,p){
+  const r=drop(b,c);if(r<0)return;const i=r*C+c,my2=rid;b[i]=p;render(null,i);setTimeout(()=>sfx(p===1?"a":"b"),330);
+  const w=fourAt(b,p),full=b.slice(0,C).every(Boolean);turn=p===1?2:1;
+  if(w||full){over=true;setTimeout(()=>{if(my2!==rid)return;first=1-first;render(w);
+    if(!w){sc.d++;say("Papan penuh. Seri!","you");sfx("draw")}
+    else if(p===pl){sc.w++;say("Kamu menang!","you");sfx("win")}
+    else{sc.l++;say("Temanmu menang.","foe");sfx("lose")}
+    scoreUI()},650);return}
+  mpStatus();
+}
+function beginMp(){pl=MP.host?1:2;sc={w:0,d:0,l:0};first=0;scoreUI();$("#mpc").hidden=true;$("#b7").hidden=false;$("#nr").hidden=false;newRound();info(`Tersambung! Kamu ${pl===1?"cyan":"pink"}. Untuk keluar, pilih Lawan komputer.`)}
+MP.onMsg=d=>{
+  if(hs(d,beginMp))return;if(d.cid!==MP.peer)return;
+  if(d.t==="mv"&&!over){const nb=dec(d.b);if(cnt(nb)<=cnt(b))return;b=nb;for(let r=0;r<R;r++)if(b[r*C+d.c]){b[r*C+d.c]=0;break}mpPlay(d.c,d.p)}
+  if(d.t==="new"){first=d.f;newRound()}
+};
+function setMode(m){
+  mode=m;mpOff();rid++;sc={w:0,d:0,l:0};scoreUI();
+  document.querySelectorAll("#md .btn").forEach(n=>n.classList.toggle("on",n.dataset.m===m));
+  $("#mp").hidden=m!=="mp";$("#seg").hidden=m==="mp";$("#mpc").hidden=false;info("");
+  if(m==="mp"){$("#b7").hidden=true;$("#nr").hidden=true;say("Buat room atau gabung pakai kode dari temanmu.","you")}
+  else{$("#b7").hidden=false;$("#nr").hidden=false;newRound()}
+}
+$("#md").onclick=e=>{const t=e.target.closest(".btn");if(t)setMode(t.dataset.m)};
+scoreUI();newRound();
+/* ---------- Reaksi emoji ---------- */
+(()=>{
+  const E=["🗿","🤫","😭","☠️","💩"],st=document.getElementById("st");if(!st)return;
+  const css=document.createElement("style");
+  css.textContent=".emo{display:flex;gap:8px;margin:0 0 12px}.emo button{flex:1;font-size:24px;line-height:1;padding:8px 0;border-radius:14px;border:0;background:#22164f;cursor:pointer;transition:transform .1s}.emo button:active{transform:scale(.88)}.fly{position:fixed;z-index:30;pointer-events:none;text-align:center;animation:fl 1.6s ease-out forwards}.fly b{display:block;font-size:64px;line-height:1}.fly i{font-style:normal;font-size:12px;font-weight:800;background:#000a;color:#fff;padding:2px 8px;border-radius:99px}@keyframes fl{0%{transform:translateY(10px) scale(.5);opacity:0}15%{transform:translateY(0) scale(1.15);opacity:1}100%{transform:translateY(-90px) scale(1);opacity:0}}@media (prefers-reduced-motion:reduce){.fly{animation:none}}";
+  document.head.appendChild(css);
+  const bar=document.createElement("div");bar.className="emo";bar.setAttribute("aria-label","Reaksi emoji");
+  bar.innerHTML=E.map(e=>`<button type="button" data-e="${e}">${e}</button>`).join("");
+  st.insertAdjacentElement("afterend",bar);
+  const botName=()=>typeof names!=="undefined"&&names&&names.length>1?names[1+Math.floor(Math.random()*(names.length-1))]:"Komputer";
+  const fly=(e,who,mine)=>{const d=document.createElement("div");d.className="fly";d.style.left=mine?"22%":"62%";d.style.top=mine?"58%":"36%";d.innerHTML=`<b>${e}</b><i></i>`;d.lastChild.textContent=who;document.body.appendChild(d);setTimeout(()=>d.remove(),1700)};
+  const botSay=()=>fly(E[Math.floor(Math.random()*E.length)],botName(),false);
+  let last=0,lastSp=0,was=false;
+  const inMp=()=>typeof mode!=="undefined"&&mode==="mp"&&typeof MP!=="undefined"&&!!MP.room;
+  bar.onclick=ev=>{const b=ev.target.closest("button");if(!b)return;const t=Date.now();if(t-last<900)return;last=t;fly(b.dataset.e,ME,true);if(inMp())mpSend({t:"emo",e:b.dataset.e});else if(Math.random()<.6)setTimeout(botSay,700+Math.random()*800)};
+  if(typeof MP!=="undefined"&&MP&&MP.onMsg){const o=MP.onMsg;MP.onMsg=d=>{if(d.t==="emo"){if(d.cid===MP.peer)fly(d.e,"Temanmu",false);return}o(d)}}
+  new MutationObserver(()=>{const f=st.classList.contains("foe");if(f&&!was&&!inMp()&&Date.now()-lastSp>8000&&Math.random()<.12){lastSp=Date.now();setTimeout(botSay,700+Math.random()*900)}was=f}).observe(st,{attributes:true,attributeFilter:["class"]});
+})();
+/* ---------- HUD: cara main dan win streak ---------- */
+(()=>{
+  const gm=document.title.replace("GasMain: ","");
+  const RULES={
+    "Battleship":["Tiap pemain punya 5 kapal (panjang 5, 4, 3, 3, 2) di papan 10×10.","Taruh kapalmu: pilih kapal, tekan Putar untuk mengatur arah, lalu ketuk kotak. Ketuk kapal di papan untuk memindahkannya, atau tekan Acak.","Bergantian menembak satu kotak. Tanda ✕ berarti kena, titik berarti meleset.","Kapal yang semua kotaknya kena akan tenggelam dan dicoret.","Pemenang adalah yang lebih dulu menenggelamkan semua kapal lawan."],
+    "Tic-Tac-Toe":["Kamu X, komputer O. Ketuk kotak kosong untuk menaruh tandamu.","Bergantian jalan. Yang jalan duluan berganti tiap ronde.","Menang kalau tiga tandamu sejajar: mendatar, menurun, atau diagonal.","Papan penuh tanpa pemenang berarti seri.","Level Santai (acak), Sedang (kadang salah), Jago (tidak bisa dikalahkan)."],
+    "Connect Four":["Ketuk sebuah kolom untuk menjatuhkan cakrammu. Cakram jatuh sampai dasar atau menumpuk di atas cakram lain.","Kamu cyan, komputer pink. Bergantian jalan.","Menang kalau empat cakrammu sejajar: mendatar, menurun, atau diagonal.","Papan penuh tanpa pemenang berarti seri.","Level Jago berpikir beberapa langkah ke depan."],
+    "Uno":["Tiap pemain dapat 7 kartu. Habiskan kartumu duluan.","Mainkan kartu yang warna atau angka/simbolnya sama dengan kartu di tengah. Kartu yang bisa dimainkan terangkat dan menyala.","Lewati: pemain berikutnya hilang giliran. Balik arah: arah main berbalik (dengan 2 pemain sama seperti Lewati). +2: lawan ambil 2 kartu dan hilang giliran.","Wild: pilih warna baru. Wild +4: pilih warna dan lawan ambil 4 kartu; hanya boleh kalau kamu tidak punya warna yang sama.","Tidak ada kartu yang cocok? Ketuk tumpukan untuk ambil satu kartu. Kalau bisa dimainkan, boleh langsung dimainkan.","Kartumu tinggal satu? Tekan UNO! sebelum komputer jalan, kalau lupa kamu ambil 2 kartu."],
+    "Ular Tangga":["Lempar dadu dan bidakmu maju sebanyak angka dadu. Tiap giliran hanya satu lemparan.","Berhenti di kaki tangga: naik ke ujung atasnya. Berhenti di kepala ular: turun ke ekornya.","Peta ular dan tangga diacak tiap ronde.","Harus sampai tepat di kotak 100. Kalau angka dadu kelebihan, bidak tidak jalan.","Pemenang adalah yang pertama sampai di kotak 100."],
+    "Ludo":["Tiap pemain punya 4 bidak. Kamu bidak merah.","Lempar dadu. Angka 6 dibutuhkan untuk mengeluarkan bidak dari kandang.","Bidak berputar searah jarum jam lewat jalur putih, lalu masuk jalur warna menuju rumah di tengah. Angkanya harus pas untuk masuk rumah.","Mendarat di bidak lawan pada kotak biasa memakannya (kembali ke kandang). Kotak berbintang dan kotak start aman.","Dapat angka 6, memakan bidak, atau sampai rumah berarti main lagi.","Pemenang adalah yang pertama membawa 4 bidaknya ke rumah."],
+    "Gaple":["Tiap pemain dapat 7 kartu domino (set 0 sampai 6).","Pemilik balak (kartu kembar) tertinggi jalan duluan dengan balak itu.","Sambung kartu di ujung kiri atau kanan meja yang angkanya sama. Ujung yang bisa dipakai menyala biru. Kartu kembar dipasang menyilang.","Tidak ada kartu yang cocok? Giliran lewat (tidak ambil kartu).","Menang kalau kartumu habis. Kalau semua pemain lewat berturut-turut (terkunci), pemenangnya yang sisa titiknya paling sedikit."],
+    "Othello":["Papan 8×8. Kamu cyan dan jalan duluan.","Taruh cakram di titik terang, yaitu kotak yang mengapit satu atau lebih cakram lawan di antara cakrammu.","Semua cakram lawan yang terapit otomatis berbalik jadi warnamu.","Tidak punya langkah? Giliran dilewati.","Permainan selesai saat papan penuh atau tidak ada yang bisa jalan. Cakram terbanyak menang."]
+  };
+  const css=document.createElement("style");
+  css.textContent=".hud{display:flex;align-items:center;justify-content:space-between;margin:-2px 0 12px;min-height:40px}.hbtn{font:inherit;font-weight:700;font-size:13px;border:0;border-radius:99px;padding:8px 14px;background:#22164f;color:#f1edff;cursor:pointer}.stk{display:flex;align-items:center;gap:4px;font-weight:800;font-size:20px;background:#22164f;border-radius:99px;padding:3px 14px 3px 10px;border:2px solid #ff7a1855}.stk .fire{display:inline-block;font-size:22px;filter:drop-shadow(0 0 6px #ff7a18);animation:fire .8s ease-in-out infinite alternate;transform-origin:50% 90%}@keyframes fire{0%{transform:scale(.95) rotate(-7deg)}50%{transform:scale(1.15) rotate(4deg)}100%{transform:scale(1.02) rotate(7deg)}}.stk.t2{border-color:#ff7a18}.stk.t2 .fire{font-size:26px}.stk.t3{border-color:#ffd84d;box-shadow:0 0 14px #ff7a1888}.stk.t3 .fire{font-size:30px;filter:drop-shadow(0 0 10px #ffb02e)}.stk.pop{animation:sp .5s}@keyframes sp{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}.hov{position:fixed;inset:0;background:#0b0620ee;display:none;place-items:center;padding:20px;z-index:40}.hov.on{display:grid}.hc{background:#22164f;border-radius:24px;padding:22px;max-width:380px;width:100%;max-height:86vh;overflow:auto;color:#f1edff}.hc h2{margin:0 0 12px;font-size:26px;letter-spacing:-.5px}.hc ol{margin:0 0 16px;padding-left:20px;line-height:1.5}.hc li{margin-bottom:8px}.hc button{width:100%;font:inherit;font-weight:800;font-size:17px;border:0;border-radius:14px;padding:14px;background:#5ef2e0;color:#06241f;cursor:pointer}@media (prefers-reduced-motion:reduce){.stk .fire,.stk.pop{animation:none}}";
+  document.head.appendChild(css);
+  const top=document.querySelector(".top");if(!top)return;
+  const hud=document.createElement("div");hud.className="hud";
+  hud.innerHTML='<button type="button" class="hbtn" id="hbtn">\u2753 Cara main</button><div class="stk" id="stk" hidden><span class="fire">\u{1F525}</span><b id="stkn">0</b></div>';
+  top.insertAdjacentElement("afterend",hud);
+  const hov=document.createElement("div");hov.className="hov";
+  hov.innerHTML=`<div class="hc"><h2>Cara main ${gm}</h2><ol>${(RULES[gm]||["Aturan belum tersedia."]).map(x=>`<li>${x}</li>`).join("")}</ol><button type="button">Mengerti</button></div>`;
+  document.body.appendChild(hov);
+  document.getElementById("hbtn").onclick=()=>hov.classList.add("on");
+  hov.onclick=e=>{if(e.target===hov||e.target.tagName==="BUTTON")hov.classList.remove("on")};
+  const KEY="gasmain_streak_"+gm.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  let S={n:0,b:0};try{S=JSON.parse(localStorage.getItem(KEY))||S}catch(e){}
+  const stk=document.getElementById("stk"),num=document.getElementById("stkn");
+  const showS=pop=>{stk.hidden=S.n<1;num.textContent=S.n;stk.title="Win streak terbaik: "+S.b;stk.className="stk"+(S.n>=7?" t3":S.n>=3?" t2":"");if(pop){stk.classList.remove("pop");void stk.offsetWidth;stk.classList.add("pop")}};
+  const res=r=>{if(r==="win"){S.n++;S.b=Math.max(S.b,S.n)}else if(r==="lose")S.n=0;else return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}showS(true)};
+  showS(false);
+  const ov=document.getElementById("ov"),ovT=document.getElementById("ovT");
+  if(ov&&ovT){
+    let was=false;
+    new MutationObserver(()=>{
+      const on=ov.classList.contains("on");
+      if(on&&!was){
+        const t=ovT.textContent.trim().toLowerCase();
+        if(!/seri/.test(t)){
+          if(/tenggelam/.test(t))res("lose");
+          else if(/menang/.test(t))res(/^(kamu|menang)/.test(t)||t.startsWith(String(ME).toLowerCase())?"win":"lose");
+        }
+      }
+      was=on;
+    }).observe(ov,{attributes:true,attributeFilter:["class"]});
+  }else{
+    const scE=document.getElementById("sc");
+    if(scE){
+      const nums=()=>[...scE.querySelectorAll("b")].map(b=>+b.textContent);
+      let prev=nums();
+      new MutationObserver(()=>{
+        const c=nums();
+        if(c[0]===prev[0]+1&&c[1]===prev[1]&&c[2]===prev[2])res("win");
+        else if(c[2]===prev[2]+1&&c[0]===prev[0]&&c[1]===prev[1])res("lose");
+        prev=c;
+      }).observe(scE,{childList:true,subtree:true});
+    }
+  }
+})();
+</script>
+</body>
+</html>
