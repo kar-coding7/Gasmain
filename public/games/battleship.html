@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>GasMain: Battleship</title>
+<title>Battleship: Lawan Komputer</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#150d2e;--panel:#22164f;--cell:#2c1d63;--ink:#f1edff;--mute:#9a8fd0;--cy:#5ef2e0;--pk:#ff4f8b;--ship:#c9bcff;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -80,10 +80,10 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:6px 0 0;line-heig
 <body>
 <div class="wrap">
   <div class="top"><div><a href="/" style="display:block;margin-bottom:6px;color:#9a8fd0;text-decoration:none;font-weight:700">&lsaquo; GasMain</a><h1>Battleship</h1>
-  <p class="sub">Lawan komputer atau teman, papan 10×10</p></div><div class="tg"><button class="btn" id="mus"></button><button class="btn" id="sfx"></button></div></div>
+  <p class="sub">Lawan komputer, papan 10×10</p></div><div class="tg"><button class="btn" id="mus"></button><button class="btn" id="sfx"></button></div></div>
 
   <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
-  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div></div></div>
   <section id="setup">
     <div class="status you" id="hint"></div>
     <div class="board" id="mine"></div>
@@ -245,6 +245,7 @@ $("#rot").onclick=()=>{horiz=!horiz;setupUI(true)};
 $("#rnd").onclick=()=>{rand(me);sel=-1;setupUI()};
 $("#clr").onclick=()=>{me.ships.forEach((_,k)=>lift(me,k));sel=0;setupUI()};
 $("#go").onclick=()=>{
+  if(mode==="mp"&&MP.gone){setMode("cpu");return}
   if(mode==="mp"){ac();myR=true;mpSend({t:"rdy"});$("#go").disabled=true;hint("Menunggu temanmu siap...");tryStart();return}
   phase="play";foe=mk();rand(foe);turn="you";busy=false;ac();musicStart();
   $("#setup").hidden=true;$("#play").hidden=false;
@@ -312,16 +313,22 @@ function newGame(){
 const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
 const info=h=>{$("#mpinfo").innerHTML=h};
 const genCode=()=>Array.from({length:5},()=>"abcdefghjkmnpqrstuvwxyz23456789"[Math.floor(Math.random()*31)]).join("");
+MP.peerEv=ev=>{
+  if(!MP.started)return;
+  if(ev.state==="offline")gmNotice("Temanmu terputus. Menunggu dia kembali...");
+  else if(ev.state==="online")gmNotice("Temanmu tersambung lagi.");
+  else if(ev.state==="left"){MP.gone=true;gmNotice("Temanmu keluar dari game.");if(MP.onMsg)MP.onMsg({t:"quit",cid:MP.peer})}
+};
 async function mpOpen(code){
   const room=typeof claude==="undefined"?null:await Promise.race([claude.use("room"),new Promise(r=>setTimeout(()=>r(null),8000))]);
   if(!room)throw 0;
   MP.room=await room.join("bs-"+code);
   MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
-  MP.room.on("_p",m=>{const d=m.data;if(!d||d.t!=="left"||!MP.started)return;MP.peer=null;MP.started=false;if(phase==="play"){phase="over";busy=true;pend=null;musicStop();say("Lawan telah meninggalkan permainan.","foe")}else if(phase==="setup"){myR=false;$("#go").disabled=true;hint("Lawan telah meninggalkan permainan.")}});
+  if(MP.room.onPeer)MP.room.onPeer(ev=>{if(MP.peerEv)MP.peerEv(ev)});
   MP.iv=setInterval(()=>{if(MP.tick)MP.tick()},2000);
 }
 const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
-function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false}
+function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false;MP.gone=false}
 function hs(d,begin){
   if(d.t==="hi"){if(!MP.host)return true;if(MP.peer&&MP.peer!==d.cid){mpSend({t:"full",to:d.cid});return true}MP.peer=d.cid;mpSend({t:"start",to:d.cid});if(!MP.started){MP.started=true;begin()}return true}
   if(d.t==="start"){if(MP.host||d.to!==MP.cid)return true;MP.peer=d.cid;if(!MP.started){MP.started=true;begin()}return true}
@@ -335,7 +342,7 @@ $("#mkroom").onclick=async()=>{
   info(`Kode room: <b>${code.toUpperCase()}</b><br>Kirim kode ini ke temanmu, lalu tunggu dia gabung.`);
 };
 $("#joinroom").onclick=async()=>{
-  const code=$("#code").value.replace(/\s+/g,"").toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
   mpOff();info("Menghubungkan...");
   try{await mpOpen(code)}catch(e){return fail()}
   let n=0;const t=setInterval(()=>{if(MP.started||++n>12){clearInterval(t);if(!MP.started)info("Room tidak ketemu atau temanmu belum siap. Cek kodenya, lalu coba lagi.")}else mpSend({t:"hi"})},1500);
@@ -352,6 +359,7 @@ function tryStart(){
 MP.tick=()=>{if(pend)mpSend({t:"sh",i:pend.i});else if(myR&&phase==="setup")mpSend({t:"rdy"})};
 MP.onMsg=d=>{
   if(hs(d,beginMp))return;if(d.cid!==MP.peer)return;
+  if(d.t==="quit"){if(phase!=="over"){if(phase==="play"){end(true);$("#ovS").textContent="Temanmu keluar dari permainan."}else{hint("Temanmu keluar dari game.")}}return}
   if(d.t==="rdy"){opR=true;if(phase==="play")mpSend({t:"rdy"});tryStart();return}
   if(d.t==="sh"&&phase==="play"){
     const i=d.i;if(resC[i]){mpSend(resC[i]);return}
@@ -384,8 +392,16 @@ function setMode(m){
   if(m==="mp"){$("#setup").hidden=true;info("Buat room atau gabung pakai kode dari temanmu.")}
 }
 $("#md").onclick=e=>{const t=e.target.closest(".btn");if(t)setMode(t.dataset.m)};
-$("#ovB").onclick=newGame;
-$("#again").onclick=()=>{if(mode==="mp"){setMode("cpu");return}if(confirm("Ulang dari awal? Permainan ini akan hilang."))newGame()};
+$("#ovB").onclick=()=>{if(mode==="mp"&&MP.gone){setMode("cpu");return}newGame()};
+$("#again").onclick=()=>{
+  if(phase==="play"){
+    if(!confirm("Menyerah? Ini dihitung sebagai kalah."))return;
+    if(mode==="mp")mpSend({t:"quit"});
+    if(window.gmResult)window.gmResult("lose");
+  }
+  if(mode==="mp"){setMode("cpu");return}
+  newGame();
+};
 newGame();
 /* ---------- Reaksi emoji ---------- */
 (()=>{
@@ -431,11 +447,36 @@ newGame();
   document.getElementById("hbtn").onclick=()=>hov.classList.add("on");
   hov.onclick=e=>{if(e.target===hov||e.target.tagName==="BUTTON")hov.classList.remove("on")};
   const KEY="gasmain_streak_"+gm.toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  let S={n:0,b:0};try{S=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem("gasmain_streak_battleship-lawan-komputer"))||S}catch(e){}
+  let S={n:0,b:0};try{S=JSON.parse(localStorage.getItem(KEY))||S}catch(e){}
   const stk=document.getElementById("stk"),num=document.getElementById("stkn");
   const showS=pop=>{stk.hidden=S.n<1;num.textContent=S.n;stk.title="Win streak terbaik: "+S.b;stk.className="stk"+(S.n>=7?" t3":S.n>=3?" t2":"");if(pop){stk.classList.remove("pop");void stk.offsetWidth;stk.classList.add("pop")}};
   const res=r=>{if(r==="win"){S.n++;S.b=Math.max(S.b,S.n)}else if(r==="lose")S.n=0;else return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}showS(true)};
-  showS(false);
+  window.gmResult=res;showS(false);
+  /* --- pengaturan (gir) dan pemberitahuan --- */
+  const css2=document.createElement("style");
+  css2.textContent='#sfx.gear,.btn.gear{font-size:18px;line-height:1;padding:6px 12px}.gset{position:fixed;inset:0;background:#0b0620ee;display:none;place-items:center;padding:20px;z-index:45}.gset.on{display:grid}.gcard{background:#22164f;border-radius:24px;padding:22px;max-width:360px;width:100%;color:#f1edff}.gcard h2{margin:0 0 10px;font-size:24px;letter-spacing:-.5px}.grow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid #ffffff14}.grow small{display:block;color:#9a8fd0;font-size:12px;margin-top:2px}.sw{flex:none;width:52px;height:30px;border-radius:99px;border:0;background:#3a2f6e;position:relative;cursor:pointer;transition:background .2s}.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}.sw.on{background:#5ef2e0}.sw.on::after{left:25px}.gcard .done{width:100%;margin-top:14px;font:inherit;font-weight:800;font-size:17px;border:0;border-radius:14px;padding:14px;background:#5ef2e0;color:#06241f;cursor:pointer}.gnote{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translate(-50%,-30px);background:#f1edff;color:#1a1040;font-weight:800;padding:11px 18px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:92vw;text-align:center}.gnote.on{opacity:1;transform:translate(-50%,0)}@media (prefers-reduced-motion:reduce){.sw,.sw::after,.gnote{transition:none}}';
+  document.head.appendChild(css2);
+  let gnT;const gn=document.createElement("div");gn.className="gnote";document.body.appendChild(gn);
+  window.gmNotice=t=>{gn.textContent=t;gn.classList.add("on");clearTimeout(gnT);gnT=setTimeout(()=>gn.classList.remove("on"),4500)};
+  const kv=(k,v)=>{try{localStorage.setItem(k,v?"1":"0")}catch(e){}};
+  const kl=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v!=="0"}catch(e){return d}};
+  const hasMus=typeof mOn!=="undefined";
+  sOn=kl("gasmain_efek",true);
+  if(hasMus)mOn=kl("gasmain_musik",true);
+  let emoOn=kl("gasmain_emoji",true);
+  const emoEl=document.querySelector(".emo"),applyEmo=()=>{if(emoEl)emoEl.style.display=emoOn?"":"none"};applyEmo();
+  const rows=[{k:"efek",t:"Efek suara",s:"Bunyi saat main, menang, dan kalah",get:()=>sOn,set:v=>{sOn=v;kv("gasmain_efek",v)}}];
+  if(hasMus)rows.push({k:"musik",t:"Musik",s:"Lagu latar saat bertempur",get:()=>mOn,set:v=>{mOn=v;kv("gasmain_musik",v);if(typeof AC!=="undefined"&&AC&&AC.mus&&typeof mus!=="undefined"&&mus)AC.mus.gain.setTargetAtTime(v?.5:0,AC.currentTime,.1)}});
+  if(emoEl)rows.push({k:"emoji",t:"Tombol emoji",s:"Reaksi \u{1F5FF} \u{1F92B} \u{1F62D} \u2620\uFE0F \u{1F4A9} saat main",get:()=>emoOn,set:v=>{emoOn=v;kv("gasmain_emoji",v);applyEmo()}});
+  const gs=document.createElement("div");gs.className="gset";document.body.appendChild(gs);
+  const paint=()=>{gs.innerHTML='<div class="gcard"><h2>Pengaturan</h2>'+rows.map(r=>`<div class="grow"><div>${r.t}<small>${r.s}</small></div><button type="button" class="sw${r.get()?" on":""}" data-k="${r.k}" aria-label="${r.t}" aria-pressed="${r.get()}"></button></div>`).join("")+'<button type="button" class="done">Selesai</button></div>'};
+  const flip=k=>{const r=rows.find(x=>x.k===k);if(r){r.set(!r.get());paint()}};
+  gs.onclick=e=>{const b=e.target.closest("button");if(!b){if(e.target===gs)gs.classList.remove("on");return}if(b.classList.contains("done")){gs.classList.remove("on");return}flip(b.dataset.k)};
+  window.gmSettings={toggle:flip};
+  const gear=document.getElementById("sfx");
+  if(gear){gear.innerHTML="&#9881;";gear.className="btn sm gear";gear.setAttribute("aria-label","Pengaturan");gear.onclick=()=>{paint();gs.classList.add("on")}}
+  const mb=document.getElementById("mus");if(mb)mb.style.display="none";
+
   const ov=document.getElementById("ov"),ovT=document.getElementById("ovT");
   if(ov&&ovT){
     let was=false;
@@ -444,7 +485,7 @@ newGame();
       if(on&&!was){
         const t=ovT.textContent.trim().toLowerCase();
         if(!/seri/.test(t)){
-          if(/tenggelam/.test(t))res("lose");
+          if(/tenggelam|kalah/.test(t))res("lose");
           else if(/menang/.test(t))res(/^(kamu|menang)/.test(t)||t.startsWith(String(ME).toLowerCase())?"win":"lose");
         }
       }

@@ -174,20 +174,27 @@ function newRound(){
 }
 $("#b7").onclick=e=>{const t=e.target.closest(".col");if(!t||over||busy)return;const c=+t.dataset.c;if(drop(b,c)<0)return;if(mode==="mp"){if(turn!==pl)return;mpPlay(c,pl);mpSend({t:"mv",c,p:pl,b:enc()});return}play(c,1)};
 $("#seg").onclick=e=>{const t=e.target.closest(".btn");if(!t)return;if(!over&&b.some(Boolean)){say("Selesaikan ronde ini dulu untuk ganti level.","you");return}lvl=+t.dataset.l;document.querySelectorAll("#seg .btn").forEach(n=>n.classList.toggle("on",n===t));newRound()};
-$("#ovB").onclick=()=>{if(!over)return;if(mode==="mp")mpSend({t:"new",f:first});newRound()};
+$("#ovB").onclick=()=>{if(!over)return;if(mode==="mp"&&MP.gone){setMode("cpu");return}if(mode==="mp")mpSend({t:"new",f:first});newRound()};
 /* ---------- Mabar online ---------- */
 const MP={room:null,host:false,peer:null,started:false,cid:Math.random().toString(36).slice(2,9),iv:0,onMsg:null,tick:null};
 const info=h=>{$("#mpinfo").innerHTML=h};
 const genCode=()=>Array.from({length:5},()=>"abcdefghjkmnpqrstuvwxyz23456789"[Math.floor(Math.random()*31)]).join("");
+MP.peerEv=ev=>{
+  if(!MP.started)return;
+  if(ev.state==="offline")gmNotice("Temanmu terputus. Menunggu dia kembali...");
+  else if(ev.state==="online")gmNotice("Temanmu tersambung lagi.");
+  else if(ev.state==="left"){MP.gone=true;gmNotice("Temanmu keluar dari game.");if(MP.onMsg)MP.onMsg({t:"quit",cid:MP.peer})}
+};
 async function mpOpen(code){
   const room=typeof claude==="undefined"?null:await Promise.race([claude.use("room"),new Promise(r=>setTimeout(()=>r(null),8000))]);
   if(!room)throw 0;
   MP.room=await room.join("c4-"+code);
   MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
+  if(MP.room.onPeer)MP.room.onPeer(ev=>{if(MP.peerEv)MP.peerEv(ev)});
   MP.iv=setInterval(()=>{if(MP.tick)MP.tick()},2000);
 }
 const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
-function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false}
+function mpOff(){clearInterval(MP.iv);if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.peer=null;MP.started=false;MP.host=false;MP.gone=false}
 function hs(d,begin){
   if(d.t==="hi"){if(!MP.host)return true;if(MP.peer&&MP.peer!==d.cid){mpSend({t:"full",to:d.cid});return true}MP.peer=d.cid;mpSend({t:"start",to:d.cid});if(!MP.started){MP.started=true;begin()}return true}
   if(d.t==="start"){if(MP.host||d.to!==MP.cid)return true;MP.peer=d.cid;if(!MP.started){MP.started=true;begin()}return true}
@@ -297,6 +304,31 @@ scoreUI();newRound();
   const showS=pop=>{stk.hidden=S.n<1;num.textContent=S.n;stk.title="Win streak terbaik: "+S.b;stk.className="stk"+(S.n>=7?" t3":S.n>=3?" t2":"");if(pop){stk.classList.remove("pop");void stk.offsetWidth;stk.classList.add("pop")}};
   const res=r=>{if(r==="win"){S.n++;S.b=Math.max(S.b,S.n)}else if(r==="lose")S.n=0;else return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}showS(true)};
   window.gmResult=res;showS(false);
+  /* --- pengaturan (gir) dan pemberitahuan --- */
+  const css2=document.createElement("style");
+  css2.textContent='#sfx.gear,.btn.gear{font-size:18px;line-height:1;padding:6px 12px}.gset{position:fixed;inset:0;background:#0b0620ee;display:none;place-items:center;padding:20px;z-index:45}.gset.on{display:grid}.gcard{background:#22164f;border-radius:24px;padding:22px;max-width:360px;width:100%;color:#f1edff}.gcard h2{margin:0 0 10px;font-size:24px;letter-spacing:-.5px}.grow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid #ffffff14}.grow small{display:block;color:#9a8fd0;font-size:12px;margin-top:2px}.sw{flex:none;width:52px;height:30px;border-radius:99px;border:0;background:#3a2f6e;position:relative;cursor:pointer;transition:background .2s}.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}.sw.on{background:#5ef2e0}.sw.on::after{left:25px}.gcard .done{width:100%;margin-top:14px;font:inherit;font-weight:800;font-size:17px;border:0;border-radius:14px;padding:14px;background:#5ef2e0;color:#06241f;cursor:pointer}.gnote{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translate(-50%,-30px);background:#f1edff;color:#1a1040;font-weight:800;padding:11px 18px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:92vw;text-align:center}.gnote.on{opacity:1;transform:translate(-50%,0)}@media (prefers-reduced-motion:reduce){.sw,.sw::after,.gnote{transition:none}}';
+  document.head.appendChild(css2);
+  let gnT;const gn=document.createElement("div");gn.className="gnote";document.body.appendChild(gn);
+  window.gmNotice=t=>{gn.textContent=t;gn.classList.add("on");clearTimeout(gnT);gnT=setTimeout(()=>gn.classList.remove("on"),4500)};
+  const kv=(k,v)=>{try{localStorage.setItem(k,v?"1":"0")}catch(e){}};
+  const kl=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v!=="0"}catch(e){return d}};
+  const hasMus=typeof mOn!=="undefined";
+  sOn=kl("gasmain_efek",true);
+  if(hasMus)mOn=kl("gasmain_musik",true);
+  let emoOn=kl("gasmain_emoji",true);
+  const emoEl=document.querySelector(".emo"),applyEmo=()=>{if(emoEl)emoEl.style.display=emoOn?"":"none"};applyEmo();
+  const rows=[{k:"efek",t:"Efek suara",s:"Bunyi saat main, menang, dan kalah",get:()=>sOn,set:v=>{sOn=v;kv("gasmain_efek",v)}}];
+  if(hasMus)rows.push({k:"musik",t:"Musik",s:"Lagu latar saat bertempur",get:()=>mOn,set:v=>{mOn=v;kv("gasmain_musik",v);if(typeof AC!=="undefined"&&AC&&AC.mus&&typeof mus!=="undefined"&&mus)AC.mus.gain.setTargetAtTime(v?.5:0,AC.currentTime,.1)}});
+  if(emoEl)rows.push({k:"emoji",t:"Tombol emoji",s:"Reaksi \u{1F5FF} \u{1F92B} \u{1F62D} \u2620\uFE0F \u{1F4A9} saat main",get:()=>emoOn,set:v=>{emoOn=v;kv("gasmain_emoji",v);applyEmo()}});
+  const gs=document.createElement("div");gs.className="gset";document.body.appendChild(gs);
+  const paint=()=>{gs.innerHTML='<div class="gcard"><h2>Pengaturan</h2>'+rows.map(r=>`<div class="grow"><div>${r.t}<small>${r.s}</small></div><button type="button" class="sw${r.get()?" on":""}" data-k="${r.k}" aria-label="${r.t}" aria-pressed="${r.get()}"></button></div>`).join("")+'<button type="button" class="done">Selesai</button></div>'};
+  const flip=k=>{const r=rows.find(x=>x.k===k);if(r){r.set(!r.get());paint()}};
+  gs.onclick=e=>{const b=e.target.closest("button");if(!b){if(e.target===gs)gs.classList.remove("on");return}if(b.classList.contains("done")){gs.classList.remove("on");return}flip(b.dataset.k)};
+  window.gmSettings={toggle:flip};
+  const gear=document.getElementById("sfx");
+  if(gear){gear.innerHTML="&#9881;";gear.className="btn sm gear";gear.setAttribute("aria-label","Pengaturan");gear.onclick=()=>{paint();gs.classList.add("on")}}
+  const mb=document.getElementById("mus");if(mb)mb.style.display="none";
+
   const ov=document.getElementById("ov"),ovT=document.getElementById("ovT");
   if(ov&&ovT){
     let was=false;
