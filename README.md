@@ -47,6 +47,11 @@ Catatan hosting gratis:
 Game yang sudah bisa mabar (bertanda "Main + Mabar" di lobi): Battleship, Tic-Tac-Toe, Connect Four, Othello.
 Tombol emoji saat mabar dikirim ke temanmu, bukan ke komputer.
 
+## Pengaturan dan pemberitahuan
+- Tombol gir (pojok kanan atas) membuka pengaturan dengan saklar kapsul: Efek suara, Musik (Battleship dan lobi), dan Tombol emoji. Di lobi, gir juga berisi Ganti nama. Pilihan tersimpan di browser.
+- Saat mabar, kalau temanmu menutup tab, memutus koneksi, atau keluar, muncul pemberitahuan di bagian atas layar. Kalau itu terjadi di tengah game, kamu otomatis menang.
+- Tombol keluar atau menyerah di tengah game (Tic-Tac-Toe, Connect Four, Othello, Battleship) dihitung kalah.
+
 ## Batas dan keamanan
 - Tidak ada login. Siapa pun yang tahu kode room bisa masuk, jadi jangan taruh data pribadi di nama.
 - Maksimal 500 room sekaligus, pesan maksimal 16 KB, maksimal 40 pesan per detik per pemain.

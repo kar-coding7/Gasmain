@@ -7,7 +7,6 @@ const MAXP = {ttt:2, c4:2, bs:2, oth:2};            // awalan nama room -> jumla
 const rooms = new Map();                             // nama room -> {max, players:Map, created}
 const now = () => Date.now(), rnd = () => crypto.randomBytes(8).toString("hex");
 const cleanName = s => String(s || "").replace(/[^A-Za-z0-9 ]/g, "").trim().slice(0, 12) || "Pemain";
-const normRoom = s => String(s || "").trim().toLowerCase();
 const validRoom = n => typeof n === "string" && /^[a-z0-9][a-z0-9-]{2,31}$/.test(n);
 const json = (res, code, o) => { res.writeHead(code, {"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}); res.end(JSON.stringify(o)); };
 const sse = (p, ev, data) => { if (p.res && !p.res.writableEnded) p.res.write(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`); };
@@ -20,30 +19,27 @@ function body(req) {
     req.on("error", no);
   });
 }
-function removePlayer(r, name, p, reason) {
+function removePlayer(r, name, p) {
   r.players.delete(p.id);
   if (p.res) { try { p.res.end(); } catch (e) {} }
-  r.players.forEach(q => sse(q, "left", {id: p.id, name: p.name, reason: reason || "leave"}));
+  r.players.forEach(q => sse(q, "left", {id: p.id, name: p.name}));
   if (!r.players.size) rooms.delete(name);
 }
 async function api(req, res, url) {
   const u = new URL(req.url, "http://x");
   if (req.method === "GET" && url === "/api/events") {
-    const [r, p] = auth({room: normRoom(u.searchParams.get("room")), pid: u.searchParams.get("pid"), token: u.searchParams.get("token")});
+    const [r, p] = auth({room: u.searchParams.get("room"), pid: u.searchParams.get("pid"), token: u.searchParams.get("token")});
     if (!p) { res.writeHead(404); return res.end(); }
     res.writeHead(200, {"Content-Type":"text/event-stream","Cache-Control":"no-cache, no-transform","Connection":"keep-alive","X-Accel-Buffering":"no"});
     res.write("retry: 2000\n\n");
     if (p.res) { try { p.res.end(); } catch (e) {} }
-    if (!p.seen) { p.seen = true; p.q = []; }                 // koneksi pertama: buang antrean
-    else if (p.away) { p.away = false; r.players.forEach(q => { if (q !== p) sse(q, "back", {id: p.id, name: p.name}); }); }
-    p.res = res; p.off = 0; sse(p, "hello", {count: r.players.size, max: r.max});
-    while (p.q.length) sse(p, "msg", p.q.shift());           // kirim pesan yang tertahan saat terputus
-    req.on("close", () => { if (p.res === res) { p.res = null; p.off = now(); } });
+    p.res = res; p.off = 0; sse(p, "hello", {count: r.players.size});
+    r.players.forEach(q => { if (q !== p) sse(q, "peer", {id: p.id, name: p.name, state: "online"}); });
+    req.on("close", () => { if (p.res === res) { p.res = null; p.off = now(); r.players.forEach(q => { if (q !== p) sse(q, "peer", {id: p.id, name: p.name, state: "offline"}); }); } });
     return;
   }
   if (req.method !== "POST") return json(res, 405, {err: "metode"});
   const b = await body(req);
-  if (b && typeof b === "object") b.room = normRoom(b.room);
   if (url === "/api/enter") {
     if (!validRoom(b.room)) return json(res, 400, {err: "Kode room tidak valid"});
     let r = rooms.get(b.room);
@@ -53,7 +49,7 @@ async function api(req, res, url) {
       rooms.set(b.room, r);
     }
     if (r.players.size >= r.max) return json(res, 409, {err: "Room sudah penuh"});
-    const p = {id: rnd(), token: rnd(), name: cleanName(b.name), res: null, off: now(), n: 0, t0: now(), q: [], seen: false, away: false};
+    const p = {id: rnd(), token: rnd(), name: cleanName(b.name), res: null, off: now(), n: 0, t0: now()};
     r.players.set(p.id, p);
     return json(res, 200, {pid: p.id, token: p.token, count: r.players.size});
   }
@@ -65,11 +61,7 @@ async function api(req, res, url) {
     if (typeof b.topic !== "string" || b.topic.length > 20) return json(res, 400, {err: "topik"});
     const payload = {topic: b.topic, data: b.data, from: p.id, name: p.name};
     if (JSON.stringify(payload).length > 16000) return json(res, 413, {err: "pesan terlalu besar"});
-    r.players.forEach(q => {
-      if (q === p) return;
-      if (q.res && !q.res.writableEnded) sse(q, "msg", payload);
-      else if (q.seen && q.q.length < 50) q.q.push(payload);   // pemain sedang terputus sementara
-    });
+    r.players.forEach(q => { if (q !== p) sse(q, "msg", payload); });
     return json(res, 200, {ok: 1});
   }
   if (url === "/api/leave") { removePlayer(r, b.room, p); return json(res, 200, {ok: 1}); }
@@ -95,15 +87,10 @@ const server = http.createServer((req, res) => {
 setInterval(() => {                                   // detak jantung SSE
   rooms.forEach(r => r.players.forEach(p => { if (p.res && !p.res.writableEnded) p.res.write(":\n\n"); }));
 }, 20000);
-setInterval(() => {                                   // pantau pemain offline (peringatan 4 dtk, dihapus > 20 dtk) dan room lama
+setInterval(() => {                                   // bersihkan pemain yang offline > 60 detik dan room lama
   rooms.forEach((r, name) => {
-    r.players.forEach(p => {
-      if (!p.off) return;
-      const d = now() - p.off;
-      if (d > 20000) removePlayer(r, name, p, "timeout");
-      else if (p.seen && !p.away && d > 4000) { p.away = true; r.players.forEach(q => { if (q !== p) sse(q, "away", {id: p.id, name: p.name}); }); }
-    });
+    r.players.forEach(p => { if (p.off && now() - p.off > 60000) removePlayer(r, name, p); });
     if (rooms.has(name) && now() - r.created > 6 * 3600 * 1000) { r.players.forEach(p => { try { p.res && p.res.end(); } catch (e) {} }); rooms.delete(name); }
   });
-}, 2000);
+}, 10000);
 server.listen(PORT, "0.0.0.0", () => console.log("GasMain jalan di http://localhost:" + PORT));
