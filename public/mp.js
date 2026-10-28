@@ -22,6 +22,7 @@
         if (!ev.persisted && !dead && navigator.sendBeacon) navigator.sendBeacon("/api/leave", new Blob([JSON.stringify({room: name, pid: r.pid, token: r.token})], {type: "application/json"}));
       });
       return {
+        pid: r.pid,
         onPeer(fn) { ph.push(fn); },
         on(topic, fn) { (h[topic] = h[topic] || []).push(fn); },
         emit(topic, data) { return post("/api/send", {room: name, pid: r.pid, token: r.token, topic, data}); },
