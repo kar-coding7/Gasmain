@@ -1,6 +1,6 @@
 # GasMain Online
 
-Kumpulan 8 game (Battleship, Tic-Tac-Toe, Connect Four, Othello, Uno, Ular Tangga, Ludo, Gaple) plus mabar online.
+Kumpulan 10 game: Battleship, Tic-Tac-Toe, Connect Four, Othello, Uno, Ular Tangga, Ludo, Gaple (semuanya bisa mabar online), plus Sudoku dan Pac-Man (main sendiri).
 Server ditulis tanpa dependensi, jadi **tidak perlu `npm install`**. Cukup Node.js versi 18 ke atas.
 
 ## Isi folder
@@ -8,7 +8,7 @@ Server ditulis tanpa dependensi, jadi **tidak perlu `npm install`**. Cukup Node.
 - `package.json`
 - `public/index.html`  : lobi (daftar nama, musik, daftar game)
 - `public/mp.js`  : jembatan mabar di browser
-- `public/games/*.html`  : kedelapan game
+- `public/games/*.html`  : kesepuluh game
 
 ## 1. Tes di HP lewat Termux (gratis, tanpa hosting)
 ```
@@ -44,13 +44,19 @@ Catatan hosting gratis:
 3. Satu orang menekan **Buat room**, lalu mengirim kode 5 huruf ke temannya.
 4. Teman memasukkan kode itu, lalu menekan **Gabung**.
 
-Game yang sudah bisa mabar (bertanda "Main + Mabar" di lobi): Battleship, Tic-Tac-Toe, Connect Four, Othello.
+Game yang bisa mabar (bertanda "Main + Mabar" di lobi):
+- 2 pemain: Battleship, Tic-Tac-Toe, Connect Four, Othello.
+- 2 sampai 4 pemain: Uno, Gaple, Ludo, Ular Tangga. Satu orang buat room, teman-teman gabung dengan kode, lalu pembuat room menekan **Mulai main** kalau semua sudah masuk. Ronde baru dimulai oleh pembuat room (tamu menekan Main lagi untuk memintanya).
+- Kalau ada pemain yang keluar di tengah game 3 atau 4 pemain, game dibatalkan untuk yang tersisa. Kalau tinggal satu pemain, dia menang.
 Tombol emoji saat mabar dikirim ke temanmu, bukan ke komputer.
 
 ## Pengaturan dan pemberitahuan
 - Tombol gir (pojok kanan atas) membuka pengaturan dengan saklar kapsul: Efek suara, Musik (Battleship dan lobi), dan Tombol emoji. Di lobi, gir juga berisi Ganti nama. Pilihan tersimpan di browser.
 - Saat mabar, kalau temanmu menutup tab, memutus koneksi, atau keluar, muncul pemberitahuan di bagian atas layar. Kalau itu terjadi di tengah game, kamu otomatis menang.
 - Tombol keluar atau menyerah di tengah game (Tic-Tac-Toe, Connect Four, Othello, Battleship) dihitung kalah.
+
+## Catatan teknis mabar 2 sampai 4 pemain
+Uno, Gaple, Ludo, dan Ular Tangga memakai angka acak yang sama di semua pemain (dibagikan host saat game dimulai), jadi semua orang menghitung permainan yang sama dan hanya saling mengirim langkahnya. Akibatnya kartu pemain lain sebenarnya ada di memori browser tiap pemain. Aman untuk main santai bareng teman, tapi orang yang sengaja membongkar kode browsernya bisa mengintip kartu. Untuk permainan serius, kartu perlu disimpan di server.
 
 ## Batas dan keamanan
 - Tidak ada login. Siapa pun yang tahu kode room bisa masuk, jadi jangan taruh data pribadi di nama.
