@@ -18,6 +18,15 @@ h1{font-size:46px;font-weight:800;letter-spacing:-2px;margin:0;line-height:.95}
 .btn.main{background:var(--cy);color:#06241f;width:100%;font-size:17px;padding:15px}
 .btn.sm{padding:7px 12px;font-size:12px;border-radius:99px}
 .btn.off{opacity:.5}
+.btn.gear{font-size:18px;line-height:1;padding:6px 12px}
+.gset{position:fixed;inset:0;background:#0b0620ee;display:none;place-items:center;padding:20px;z-index:45}.gset.on{display:grid}
+.gcard{background:#22164f;border-radius:24px;padding:22px;max-width:360px;width:100%}.gcard h2{margin:0 0 10px;font-size:24px;letter-spacing:-.5px}
+.grow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid #ffffff14}.grow small{display:block;color:#9a8fd0;font-size:12px;margin-top:2px}
+.sw{flex:none;width:52px;height:30px;border-radius:99px;border:0;background:#3a2f6e;position:relative;cursor:pointer;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}
+.sw.on{background:#5ef2e0}.sw.on::after{left:25px}
+.gcard .chip{font:inherit;font-weight:700;font-size:13px;border:0;border-radius:99px;padding:8px 14px;background:#3a2f6e;color:#f1edff;cursor:pointer}
+.gcard .done{width:100%;margin-top:14px;font:inherit;font-weight:800;font-size:17px;border:0;border-radius:14px;padding:14px;background:#5ef2e0;color:#06241f;cursor:pointer}
 .reg{background:var(--panel);border-radius:24px;padding:20px;margin-top:8px}
 .reg label{display:block;font-weight:700;margin-bottom:8px}
 .reg input{font:inherit;font-weight:700;width:100%;background:var(--bg);color:var(--ink);border:2px solid #ffffff22;border-radius:14px;padding:13px 14px;font-size:18px;margin-bottom:8px}
@@ -56,7 +65,7 @@ h1{font-size:46px;font-weight:800;letter-spacing:-2px;margin:0;line-height:.95}
   </section>
 
   <section id="lob" hidden>
-    <div class="hi"><div><p>Halo,</p><h2 id="who"></h2></div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"><button class="btn sm" id="mus"></button><button class="btn sm" id="chg">Ganti nama</button></div></div>
+    <div class="hi"><div><p>Halo,</p><h2 id="who"></h2></div><button class="btn sm gear" id="gear" aria-label="Pengaturan">&#9881;</button></div>
     <div class="h3">Pilih game</div>
     <div class="grid">
       <button class="g" data-href="/games/battleship.html" style="--t:#5ef2e022;--b:#5ef2e066">
@@ -157,11 +166,8 @@ function mStart(){
   };
   mus=setInterval(sched,100);sched();
 }
-const mUI=()=>{$("#mus").textContent="♪ Musik "+(mOn?"nyala":"mati");$("#mus").classList.toggle("off",!mOn)};
-$("#mus").onclick=()=>{mOn=!mOn;try{localStorage.setItem("gasmain_musik",mOn?"1":"0")}catch(e){}mUI();if(mOn)mStart();if(AC)AC.mus.gain.setTargetAtTime(mOn?.85:0,AC.currentTime,.2)};
 document.addEventListener("pointerdown",()=>{if(mOn)mStart()},{once:true});
 document.addEventListener("visibilitychange",()=>{if(!AC)return;document.hidden?AC.suspend():AC.resume()});
-mUI();
 let name="",tt;
 const store={
   get(){try{return localStorage.getItem(KEY)||""}catch(e){return ""}},
@@ -181,7 +187,15 @@ function daftar(){
 }
 $("#go").onclick=daftar;
 $("#nm").onkeydown=e=>{if(e.key==="Enter")daftar()};
-$("#chg").onclick=()=>{name="";store.del();$("#nm").value="";show()};
+const gs=document.createElement("div");gs.className="gset";document.body.appendChild(gs);
+const paint=()=>{gs.innerHTML='<div class="gcard"><h2>Pengaturan</h2><div class="grow"><div>Musik<small>Lagu santai di lobi</small></div><button type="button" class="sw'+(mOn?" on":"")+'" data-a="musik" aria-label="Musik" aria-pressed="'+mOn+'"></button></div><div class="grow"><div>Nama pemain<small>'+String(name).replace(/[^A-Za-z0-9 ]/g,"")+'</small></div><button type="button" class="chip" data-a="nama">Ganti nama</button></div><button type="button" class="done">Selesai</button></div>'};
+gs.onclick=e=>{
+  const b=e.target.closest("button");if(!b){if(e.target===gs)gs.classList.remove("on");return}
+  if(b.classList.contains("done")){gs.classList.remove("on");return}
+  if(b.dataset.a==="musik"){mOn=!mOn;try{localStorage.setItem("gasmain_musik",mOn?"1":"0")}catch(err){}if(mOn)mStart();if(AC)AC.mus.gain.setTargetAtTime(mOn?.85:0,AC.currentTime,.2);paint()}
+  if(b.dataset.a==="nama"){gs.classList.remove("on");name="";store.del();$("#nm").value="";show()}
+};
+$("#gear").onclick=()=>{paint();gs.classList.add("on")};
 document.querySelectorAll(".g").forEach(b=>b.onclick=()=>{
   if(!b.dataset.href){toast(b.dataset.n+" masih dibuat. Sabar ya!");return}
   location.href=b.dataset.href;
