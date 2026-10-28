@@ -48,6 +48,16 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
 .card h2{font-size:34px;margin:0 0 8px;letter-spacing:-1px;line-height:1.05}
 .card p{color:var(--mute);margin:0 0 18px}
 @media (prefers-reduced-motion:reduce){.t{transition:none}}
+[hidden]{display:none!important}
+#md{margin-bottom:10px}
+.mpbox{background:var(--panel);border-radius:16px;padding:12px;margin:10px 0 14px}
+#mpc{display:flex;flex-direction:column;gap:8px}
+#mpc:not([hidden])+.mpinfo:not(:empty){margin-top:10px}
+.r{display:flex;gap:8px}
+.r input{font:inherit;font-weight:700;flex:1;min-width:0;background:var(--bg);color:var(--ink);border:2px solid #ffffff22;border-radius:12px;padding:10px 12px;letter-spacing:3px;text-transform:lowercase}
+.mpinfo{color:var(--mute);line-height:1.45;font-size:14px}
+.mpinfo b{color:var(--cy);font-size:24px;letter-spacing:4px}
+#mpstart{margin-top:10px}
 </style>
 <script src="/mp.js"></script>
 </head>
@@ -56,6 +66,8 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
   <div class="top"><a class="back" href="/">&lsaquo; GasMain</a><button class="btn sm" id="sfx"></button></div>
   <h1>Ular Tangga</h1>
   <p class="sub">Sampai kotak 100 duluan. Peta ular dan tangga diacak tiap ronde!</p>
+  <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div><button class="btn main" id="mpstart" hidden>Mulai main</button></div></div>
   <div class="seg" id="seg"><button class="btn on" data-n="1">1 lawan</button><button class="btn" data-n="2">2 lawan</button><button class="btn" data-n="3">3 lawan</button></div>
   <div class="pl" id="pl"></div>
   <div class="bd"><div class="grid" id="grid"></div><svg class="svg" id="svg" viewBox="0 0 100 100"></svg><div class="tk" id="tk"></div></div>
@@ -71,6 +83,7 @@ const ME=(()=>{let n="";try{n=(localStorage.getItem("gasmain_nama")||decodeURICo
     if(tg)tg.insertBefore(s,tg.firstChild);else top.insertBefore(s,top.querySelector(".btn"))}
   return n||"Kamu"})();
 const $=s=>document.querySelector(s);
+let RNG=Math.random;const MPG={on:false,P:0,seat:0,names:[],first:0};let mode="cpu";
 let SNK={};
 let LDR={};
 const COLS=["#5ef2e0","#ff4f8b","#ffd84d","#7dff9b"],SC=["#ff4f8b","#ffd84d","#a98bff","#ff9f43","#5ef2e0","#7dff9b","#ff6b6b","#4da3ff","#ffb86b","#c9a2ff"];
@@ -91,7 +104,7 @@ const say=(t,c)=>{$("#st").textContent=t;$("#st").className="status "+c};
 
 /* peta acak */
 function genMap(){
-  const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+  const rnd=(a,b)=>a+Math.floor(RNG()*(b-a+1));
   const cr=k=>{const r=Math.floor((k-1)/10),c0=(k-1)%10;return[r%2?9-c0:c0,r]};
   const gd=(p,q)=>{const[a,b]=cr(p),[c,d]=cr(q);return Math.max(Math.abs(a-c),Math.abs(b-d))};
   const ptSeg=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy;let t=L?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy)};
@@ -144,18 +157,19 @@ function chips(){$("#pl").innerHTML=names.map((nm,i)=>`<div class="p${cur===i&&!
 
 /* alur permainan */
 function newGame(){
-  rid++;genMap();build();P=n+1;names=[ME,...(n===1?["Komputer"]:[...Array(n)].map((_,k)=>"Bot "+(k+1)))];
-  pos=Array(P).fill(0);cur=0;over=false;busy=false;msg="";
+  rid++;genMap();build();if(MPG.on){P=MPG.P;names=[...Array(P)].map((_,i)=>MPG.names[(MPG.seat+i)%P])}else{P=n+1;names=[ME,...(n===1?["Komputer"]:[...Array(n)].map((_,i)=>"Bot "+(i+1)))]}
+  pos=Array(P).fill(0);cur=MPG.on?((MPG.first-MPG.seat+P)%P):0;over=false;busy=false;msg="";
   $("#tk").innerHTML=pos.map((_,i)=>`<i class="t" id="t${i}" style="--c:${COLS[i]}"></i>`).join("");
   $("#ov").classList.remove("on");place();chips();$("#roll").disabled=false;
   say("Giliranmu. Lempar dadu!","you");
+  if(MPG.on){msg="Game dimulai.";next()}
 }
 function doRoll(){
   busy=true;$("#roll").disabled=true;let t=0;const my=rid;
   const iv=setInterval(()=>{
     if(my!==rid){clearInterval(iv);return}
     $("#dv").innerHTML="&#"+FACE[Math.floor(Math.random()*6)]+";";
-    if(++t>7){clearInterval(iv);const v=1+Math.floor(Math.random()*6);$("#dv").innerHTML="&#"+FACE[v-1]+";";sfx("roll");setTimeout(()=>{if(my===rid)move(v)},300)}
+    if(++t>7){clearInterval(iv);const v=1+Math.floor(Math.random()*6);$("#dv").innerHTML="&#"+FACE[v-1]+";";sfx("roll");if(MPG.on&&cur===0)mpSend({t:"act",k:"roll",seat:MPG.seat,v});setTimeout(()=>{if(my===rid)move(v)},300)}
   },80);
 }
 function move(v){
@@ -179,7 +193,7 @@ function pass(v){cur=(cur+1)%P;next()}
 function next(){
   chips();if(over)return;const my=rid;
   if(cur===0){busy=false;$("#roll").disabled=false;say(msg+" Giliranmu.","you")}
-  else{busy=true;$("#roll").disabled=true;say(`${msg} Giliran ${names[cur]}...`,"foe");setTimeout(()=>{if(my===rid)doRoll()},1000)}
+  else{busy=true;$("#roll").disabled=true;say(`${msg} Giliran ${names[cur]}...`,"foe");if(!MPG.on)setTimeout(()=>{if(my===rid)doRoll()},1000)}
 }
 function finish(pi){
   over=true;busy=true;chips();const w=pi===0;
@@ -189,8 +203,120 @@ function finish(pi){
 }
 $("#roll").onclick=()=>{if(cur===0&&!busy&&!over)doRoll()};
 $("#seg").onclick=e=>{const b=e.target.closest(".btn");if(!b)return;n=+b.dataset.n;document.querySelectorAll("#seg .btn").forEach(x=>x.classList.toggle("on",x===b));newGame()};
-$("#ovB").onclick=newGame;
-$("#shuf").onclick=newGame;
+$("#ovB").onclick=()=>{if(MPG.on){mpAgain();return}newGame()};
+/* ---------- Mabar online (2 sampai 4 pemain) ---------- */
+const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const MP={room:null,host:false,started:false,joined:false,code:"",cid:Math.random().toString(36).slice(2,9),roster:[],order:[],onMsg:null,peerEv:null};
+const info=h=>{$("#mpinfo").innerHTML=h};
+const cleanN=n=>String(n||"").replace(/[^A-Za-z0-9 ]/g,"").trim().slice(0,12)||"Pemain";
+const genCode=()=>Array.from({length:5},()=>"abcdefghjkmnpqrstuvwxyz23456789"[Math.floor(Math.random()*31)]).join("");
+async function mpOpen(code){
+  const room=typeof claude==="undefined"?null:await Promise.race([claude.use("room"),new Promise(r=>setTimeout(()=>r(null),8000))]);
+  if(!room)throw 0;
+  MP.room=await room.join("ula-"+code);
+  MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
+  if(MP.room.onPeer)MP.room.onPeer(ev=>{if(MP.peerEv)MP.peerEv(ev)});
+}
+const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
+function mpOff(){if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.host=false;MP.started=false;MP.joined=false;MP.roster=[];MP.order=[]}
+const fail=()=>info("Tidak bisa terhubung ke server mabar. Muat ulang halaman, lalu coba lagi.");
+function showLobby(){
+  info(`Kode room: <b>${MP.code.toUpperCase()}</b><br>Pemain (${MP.roster.length}/4): ${MP.roster.map(p=>p.name).join(", ")}<br>`+(MP.host?(MP.roster.length>=2?"Tekan Mulai main kalau semua sudah masuk.":"Kirim kode ini ke teman, lalu tunggu mereka gabung."):"Menunggu host memulai game..."));
+  $("#mpstart").hidden=!(MP.host&&MP.roster.length>=2);
+}
+$("#mkroom").onclick=async()=>{
+  mpOff();MP.host=true;info("Menghubungkan...");const code=genCode();
+  try{await mpOpen(code)}catch(e){MP.host=false;return fail()}
+  MP.code=code;MP.roster=[{cid:MP.cid,pid:MP.room.pid,name:cleanN(ME)}];showLobby();
+};
+$("#joinroom").onclick=async()=>{
+  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  mpOff();info("Menghubungkan...");
+  try{await mpOpen(code)}catch(e){return fail()}
+  MP.code=code;let n=0;const hi=()=>mpSend({t:"hi",name:cleanN(ME),pid:MP.room.pid});
+  const t=setInterval(()=>{if(MP.joined||!MP.room||++n>12){clearInterval(t);if(!MP.joined&&MP.room)info("Room tidak ketemu atau host belum siap. Cek kodenya, lalu coba lagi.")}else hi()},1500);hi();
+};
+$("#mpstart").onclick=()=>{
+  if(!MP.host||MP.started||MP.roster.length<2)return;
+  MP.started=true;MP.order=MP.roster.map(p=>p.cid);const seed=(Math.random()*2147483647)|0;
+  mpSend({t:"start",order:MP.order,seed,first:0});mpBegin(seed,0);
+};
+function mpBegin(seed,first){
+  MPG.on=true;MPG.P=MP.order.length;MPG.seat=MP.order.indexOf(MP.cid);MPG.first=first;
+  MPG.names=MP.order.map(c=>(MP.roster.find(p=>p.cid===c)||{name:"Pemain"}).name);
+  RNG=mulberry(seed);mode="mp";
+  $("#mpc").hidden=true;$("#mpstart").hidden=true;
+  info(`Tersambung! ${MPG.P} pemain: ${MPG.names.join(", ")}. Untuk keluar, pilih Lawan komputer.`);
+  setCols();showGame(true);newGame();
+}
+function hostRestart(){const first=(MPG.first+1)%MPG.P,seed=(Math.random()*2147483647)|0;mpSend({t:"again",seed,first});mpBegin(seed,first)}
+function mpAgain(){
+  if(!over)return;
+  if(MP.roster.some(p=>p.gone)){setMode("cpu");return}
+  if(MP.host)hostRestart();else{mpSend({t:"want"});gmNotice("Menunggu host memulai ronde baru...")}
+}
+function mpAbort(T,S){over=true;busy=true;mpRefresh();say(S,"you");$("#ovT").textContent=T;$("#ovS").textContent=S;$("#ov").classList.add("on")}
+MP.onMsg=d=>{
+  if(d.t==="hi"&&MP.host){
+    if(MP.started){mpSend({t:"full",to:d.cid});return}
+    let p=MP.roster.find(x=>x.cid===d.cid);
+    if(!p){
+      if(MP.roster.length>=4){mpSend({t:"full",to:d.cid});return}
+      let nm=cleanN(d.name),k=2;while(MP.roster.some(x=>x.name===nm))nm=cleanN(d.name)+" "+k++;
+      MP.roster.push({cid:d.cid,pid:d.pid,name:nm});
+    }
+    mpSend({t:"roster",list:MP.roster});showLobby();return;
+  }
+  if(d.t==="roster"&&!MP.host){
+    MP.roster=(d.list||[]).map(p=>({cid:p.cid,pid:p.pid,name:cleanN(p.name)}));
+    if(MP.roster.some(p=>p.cid===MP.cid)){MP.joined=true;showLobby()}return;
+  }
+  if(d.t==="full"){if(d.to===MP.cid)info("Room ini sudah penuh atau game sudah dimulai.");return}
+  if(d.t==="start"&&!MP.host&&!MP.started){if(!Array.isArray(d.order)||!d.order.includes(MP.cid))return;MP.started=true;MP.order=d.order;mpBegin(d.seed,d.first||0);return}
+  if(d.t==="again"&&!MP.host&&MP.started&&over){mpBegin(d.seed,d.first);return}
+  if(d.t==="want"&&MP.host&&MP.started&&over){hostRestart();return}
+  if(!MP.started)return;
+  if(d.t==="act")remoteAct(d);
+};
+MP.peerEv=ev=>{
+  const p=MP.roster.find(x=>x.pid===ev.id);
+  if(!MP.started){
+    if(ev.state==="left"&&p){
+      if(!MP.host&&p.cid===MP.roster[0].cid){info("Host keluar dari room. Buat atau gabung room lain.");MP.joined=false;MP.roster=[];return}
+      MP.roster=MP.roster.filter(x=>x!==p);if(MP.host){mpSend({t:"roster",list:MP.roster});showLobby()}
+    }
+    return;
+  }
+  const nm=p?p.name:"Temanmu";
+  if(ev.state==="offline")gmNotice(nm+" terputus. Menunggu dia kembali...");
+  else if(ev.state==="online")gmNotice(nm+" tersambung lagi.");
+  else if(ev.state==="left"&&p&&!p.gone){
+    p.gone=true;gmNotice(nm+" keluar dari game.");
+    if(!over){const sisa=MP.order.filter(c=>{const q=MP.roster.find(x=>x.cid===c);return q&&!q.gone&&c!==MP.cid}).length;
+      mpAbort(sisa===0?"Kamu menang!":"Permainan dibatalkan",nm+" keluar dari permainan.")}
+  }
+};
+function setMode(m){
+  if(m===mode)return;
+  if(mode==="mp"&&MP.started&&!over&&window.gmResult)window.gmResult("lose");
+  mode=m;mpOff();MPG.on=false;RNG=Math.random;setCols();
+  document.querySelectorAll("#md .btn").forEach(n=>n.classList.toggle("on",n.dataset.m===m));
+  $("#mp").hidden=m!=="mp";$("#seg").hidden=m==="mp";$("#mpc").hidden=false;$("#mpstart").hidden=true;info("");
+  if(m==="mp"){showGame(false);if($("#ov"))$("#ov").classList.remove("on")}else{showGame(true);newGame()}
+}
+$("#md").onclick=e=>{const t=e.target.closest(".btn");if(t)setMode(t.dataset.m)};
+function showGame(v){GAMEEL.forEach(s=>document.querySelectorAll(s).forEach(e=>{e.hidden=!v}));if(typeof afterShow==="function")afterShow()}
+const GAMEEL=["#pl",".bd","#roll","#shuf","#st",".emo"];
+const mpRefresh=()=>{place();chips()};
+const BASEC=COLS.slice();
+function setCols(){if(MPG.on)COLS.splice(0,4,...[0,1,2,3].map(i=>BASEC[(MPG.seat+i)%MPG.P]));else COLS.splice(0,4,...BASEC)}
+function afterShow(){$("#shuf").hidden=MPG.on||mode==="mp"}
+function remoteAct(d){
+  const li=(d.seat-MPG.seat+P)%P;if(over||li===0||li!==cur)return;const my=rid;
+  if(d.k==="roll"){busy=true;$("#dv").innerHTML="&#"+FACE[d.v-1]+";";sfx("roll");setTimeout(()=>{if(my===rid)move(d.v)},300)}
+}
+
+$("#shuf").onclick=()=>{if(!MPG.on)newGame()};
 build();newGame();
 /* ---------- Reaksi emoji ---------- */
 (()=>{
@@ -207,7 +333,7 @@ build();newGame();
   let last=0,lastSp=0,was=false;
   const inMp=()=>typeof mode!=="undefined"&&mode==="mp"&&typeof MP!=="undefined"&&!!MP.room;
   bar.onclick=ev=>{const b=ev.target.closest("button");if(!b)return;const t=Date.now();if(t-last<900)return;last=t;fly(b.dataset.e,ME,true);if(inMp())mpSend({t:"emo",e:b.dataset.e});else if(Math.random()<.6)setTimeout(botSay,700+Math.random()*800)};
-  if(typeof MP!=="undefined"&&MP&&MP.onMsg){const o=MP.onMsg;MP.onMsg=d=>{if(d.t==="emo"){if(d.cid===MP.peer)fly(d.e,"Temanmu",false);return}o(d)}}
+  if(typeof MP!=="undefined"&&MP&&MP.onMsg){const o=MP.onMsg;MP.onMsg=d=>{if(d.t==="emo"){const q=MP.roster&&MP.roster.find(x=>x.cid===d.cid);if(q)fly(d.e,q.name,false);return}o(d)}}
   new MutationObserver(()=>{const f=st.classList.contains("foe");if(f&&!was&&!inMp()&&Date.now()-lastSp>8000&&Math.random()<.12){lastSp=Date.now();setTimeout(botSay,700+Math.random()*900)}was=f}).observe(st,{attributes:true,attributeFilter:["class"]});
 })();
 /* ---------- HUD: cara main dan win streak ---------- */

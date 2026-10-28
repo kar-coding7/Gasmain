@@ -63,6 +63,16 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-20px);background:var(--ink);color:#1a1040;font-weight:800;padding:10px 18px;border-radius:99px;opacity:0;pointer-events:none;transition:.25s;z-index:20;max-width:92vw;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+[hidden]{display:none!important}
+#md{margin-bottom:10px}
+.mpbox{background:var(--panel);border-radius:16px;padding:12px;margin:10px 0 14px}
+#mpc{display:flex;flex-direction:column;gap:8px}
+#mpc:not([hidden])+.mpinfo:not(:empty){margin-top:10px}
+.r{display:flex;gap:8px}
+.r input{font:inherit;font-weight:700;flex:1;min-width:0;background:var(--bg);color:var(--ink);border:2px solid #ffffff22;border-radius:12px;padding:10px 12px;letter-spacing:3px;text-transform:lowercase}
+.mpinfo{color:var(--mute);line-height:1.45;font-size:14px}
+.mpinfo b{color:var(--cy);font-size:24px;letter-spacing:4px}
+#mpstart{margin-top:10px}
 </style>
 <script src="/mp.js"></script>
 </head>
@@ -71,6 +81,8 @@ h1{font-size:38px;font-weight:800;letter-spacing:-1.5px;margin:0;line-height:1}
   <div class="top"><a class="back" href="/">&lsaquo; GasMain</a><button class="btn sm" id="sfx"></button></div>
   <h1>Gaple</h1>
   <p class="sub">Habiskan kartu dominomu duluan. Tidak cocok, lewat!</p>
+  <div class="seg" id="md"><button class="btn on" data-m="cpu">Lawan komputer</button><button class="btn" data-m="mp">Mabar online</button></div>
+  <div id="mp" hidden><div class="mpbox"><div id="mpc"><button class="btn" id="mkroom">Buat room</button><div class="r"><input id="code" placeholder="Kode dari teman" maxlength="5" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="joinroom">Gabung</button></div></div><div class="mpinfo" id="mpinfo"></div><button class="btn main" id="mpstart" hidden>Mulai main</button></div></div>
   <div class="seg" id="seg"><button class="btn on" data-n="1">1 lawan</button><button class="btn" data-n="3">3 lawan</button></div>
   <div class="opps" id="opps"></div>
   <div class="mejaw" id="table"><div class="ends" id="ends"></div><div class="chain" id="chain"></div></div>
@@ -87,6 +99,7 @@ const ME=(()=>{let n="";try{n=(localStorage.getItem("gasmain_nama")||decodeURICo
     if(tg)tg.insertBefore(s,tg.firstChild);else top.insertBefore(s,top.querySelector(".btn"))}
   return n||"Kamu"})();
 const $=s=>document.querySelector(s);
+let RNG=Math.random;const MPG={on:false,P:0,seat:0,names:[],first:0};let mode="cpu";
 const PIP=[[],[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8]];
 let n=1,P=2,hands,chain,cur,passes,over,busy,rid=0,names,must,msg="",pendI=null,ori=0;
 
@@ -105,7 +118,7 @@ let tto;const toast=t=>{const e=$("#tt");e.textContent=t;e.classList.add("on");c
 
 /* kartu */
 const sum=t=>t.x+t.y;
-const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(RNG()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const half=v=>`<div class="hf">${[...Array(9).keys()].map(k=>`<i${PIP[v].includes(k)?' class="on"':""}></i>`).join("")}</div>`;
 const dom=(a,b,o,extra="")=>`<${extra?"button":"div"} class="dm ${o}${extra&&extra.cls?" "+extra.cls:""}" ${extra?`data-i="${extra.i}"`:""}>${half(a)}${half(b)}</${extra?"button":"div"}>`;
 const L=()=>chain[0].a,R=()=>chain[chain.length-1].b;
@@ -141,10 +154,11 @@ function render(){
 
 /* alur permainan */
 function newGame(){
-  rid++;P=n+1;names=[ME,...(n===1?["Komputer"]:[...Array(n)].map((_,k)=>"Bot "+(k+1)))];
+  rid++;if(MPG.on){P=MPG.P;names=[...Array(P)].map((_,i)=>MPG.names[(MPG.seat+i)%P])}else{P=n+1;names=[ME,...(n===1?["Komputer"]:[...Array(n)].map((_,i)=>"Bot "+(i+1)))]}
   const ts=[];for(let x=0;x<=6;x++)for(let y=x;y<=6;y++)ts.push({x,y});shuffle(ts);
-  hands=[...Array(P)].map((_,i)=>ts.slice(i*7,i*7+7).sort((a,b)=>sum(b)-sum(a)));
-  let best=-1,st=0;hands.forEach((h,i)=>h.forEach(t=>{const v=t.x===t.y?100+t.x:sum(t);if(v>best){best=v;st=i}}));
+  const gsO=i=>MPG.on?(MPG.seat+i)%P:i;
+  hands=[...Array(P)].map((_,i)=>ts.slice(gsO(i)*7,gsO(i)*7+7).sort((a,b)=>sum(b)-sum(a)));
+  let best=-1,st=0;[...Array(P).keys()].sort((a,b)=>gsO(a)-gsO(b)).forEach(i=>hands[i].forEach(t=>{const v=t.x===t.y?100+t.x:sum(t);if(v>best){best=v;st=i}}));
   cur=st;must=hands[st].filter(t=>t.x===t.y).sort((a,b)=>b.x-a.x)[0]||null;
   chain=[];passes=0;over=false;busy=false;pendI=null;msg="";
   $("#ov").classList.remove("on");$("#side").classList.remove("on");
@@ -152,6 +166,7 @@ function newGame(){
   next();
 }
 function place(pi,i,side){
+  if(MPG.on&&pi===0){const q=hands[0][i];mpSend({t:"act",k:"place",seat:MPG.seat,x:q.x,y:q.y,side})}
   const t=hands[pi].splice(i,1)[0];
   if(!chain.length){chain.push({a:t.x,b:t.y});ori=0}
   else if(side==="L"){chain.unshift(t.y===L()?{a:t.x,b:t.y}:{a:t.y,b:t.x});ori++}
@@ -160,7 +175,7 @@ function place(pi,i,side){
   if(!hands[pi].length)return finish(pi,false);
   cur=(cur+1)%P;next();
 }
-function doPass(pi){
+function doPass(pi){if(MPG.on&&pi===0)mpSend({t:"act",k:"pass",seat:MPG.seat});
   passes++;sfx("pass");msg=`${names[pi]} lewat.`;
   if(passes>=P)return finish(-1,true);
   cur=(cur+1)%P;next();
@@ -170,7 +185,7 @@ function next(){
   if(cur===0){
     if(!hands[0].some(t=>sides(t).length)){busy=true;render();say(msg+" Kamu tidak punya kartu yang cocok, lewat.","you");setTimeout(()=>{if(my===rid)doPass(0)},1500)}
     else{busy=false;render();say(msg+" Giliranmu.","you")}
-  }else{busy=true;say(`${msg} Giliran ${names[cur]}...`,"foe");setTimeout(()=>{if(my===rid)aiStep()},1000)}
+  }else{busy=true;say(`${msg} Giliran ${names[cur]}...`,"foe");if(!MPG.on)setTimeout(()=>{if(my===rid)aiStep()},1000)}
 }
 function aiStep(){
   const pi=cur,h=hands[pi];let best=null,bs=-1e9;
@@ -210,7 +225,117 @@ $("#side").onclick=e=>{
   const i=pendI;pendI=null;$("#side").classList.remove("on");place(0,i,b.id==="sideL"?"L":"R");
 };
 $("#seg").onclick=e=>{const b=e.target.closest(".btn");if(!b)return;n=+b.dataset.n;document.querySelectorAll("#seg .btn").forEach(x=>x.classList.toggle("on",x===b));newGame()};
-$("#ovB").onclick=newGame;
+$("#ovB").onclick=()=>{if(MPG.on){mpAgain();return}newGame()};
+/* ---------- Mabar online (2 sampai 4 pemain) ---------- */
+const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const MP={room:null,host:false,started:false,joined:false,code:"",cid:Math.random().toString(36).slice(2,9),roster:[],order:[],onMsg:null,peerEv:null};
+const info=h=>{$("#mpinfo").innerHTML=h};
+const cleanN=n=>String(n||"").replace(/[^A-Za-z0-9 ]/g,"").trim().slice(0,12)||"Pemain";
+const genCode=()=>Array.from({length:5},()=>"abcdefghjkmnpqrstuvwxyz23456789"[Math.floor(Math.random()*31)]).join("");
+async function mpOpen(code){
+  const room=typeof claude==="undefined"?null:await Promise.race([claude.use("room"),new Promise(r=>setTimeout(()=>r(null),8000))]);
+  if(!room)throw 0;
+  MP.room=await room.join("gpl-"+code);
+  MP.room.on("g",m=>{const d=m.data;if(!d||d.cid===MP.cid)return;if(MP.onMsg)MP.onMsg(d)});
+  if(MP.room.onPeer)MP.room.onPeer(ev=>{if(MP.peerEv)MP.peerEv(ev)});
+}
+const mpSend=d=>{if(MP.room)MP.room.emit("g",{...d,cid:MP.cid}).catch(()=>{})};
+function mpOff(){if(MP.room)MP.room.leave().catch(()=>{});MP.room=null;MP.host=false;MP.started=false;MP.joined=false;MP.roster=[];MP.order=[]}
+const fail=()=>info("Tidak bisa terhubung ke server mabar. Muat ulang halaman, lalu coba lagi.");
+function showLobby(){
+  info(`Kode room: <b>${MP.code.toUpperCase()}</b><br>Pemain (${MP.roster.length}/4): ${MP.roster.map(p=>p.name).join(", ")}<br>`+(MP.host?(MP.roster.length>=2?"Tekan Mulai main kalau semua sudah masuk.":"Kirim kode ini ke teman, lalu tunggu mereka gabung."):"Menunggu host memulai game..."));
+  $("#mpstart").hidden=!(MP.host&&MP.roster.length>=2);
+}
+$("#mkroom").onclick=async()=>{
+  mpOff();MP.host=true;info("Menghubungkan...");const code=genCode();
+  try{await mpOpen(code)}catch(e){MP.host=false;return fail()}
+  MP.code=code;MP.roster=[{cid:MP.cid,pid:MP.room.pid,name:cleanN(ME)}];showLobby();
+};
+$("#joinroom").onclick=async()=>{
+  const code=$("#code").value.trim().toLowerCase();if(code.length<4)return info("Masukkan kode room dulu.");
+  mpOff();info("Menghubungkan...");
+  try{await mpOpen(code)}catch(e){return fail()}
+  MP.code=code;let n=0;const hi=()=>mpSend({t:"hi",name:cleanN(ME),pid:MP.room.pid});
+  const t=setInterval(()=>{if(MP.joined||!MP.room||++n>12){clearInterval(t);if(!MP.joined&&MP.room)info("Room tidak ketemu atau host belum siap. Cek kodenya, lalu coba lagi.")}else hi()},1500);hi();
+};
+$("#mpstart").onclick=()=>{
+  if(!MP.host||MP.started||MP.roster.length<2)return;
+  MP.started=true;MP.order=MP.roster.map(p=>p.cid);const seed=(Math.random()*2147483647)|0;
+  mpSend({t:"start",order:MP.order,seed,first:0});mpBegin(seed,0);
+};
+function mpBegin(seed,first){
+  MPG.on=true;MPG.P=MP.order.length;MPG.seat=MP.order.indexOf(MP.cid);MPG.first=first;
+  MPG.names=MP.order.map(c=>(MP.roster.find(p=>p.cid===c)||{name:"Pemain"}).name);
+  RNG=mulberry(seed);mode="mp";
+  $("#mpc").hidden=true;$("#mpstart").hidden=true;
+  info(`Tersambung! ${MPG.P} pemain: ${MPG.names.join(", ")}. Untuk keluar, pilih Lawan komputer.`);
+  setCols();showGame(true);newGame();
+}
+function hostRestart(){const first=(MPG.first+1)%MPG.P,seed=(Math.random()*2147483647)|0;mpSend({t:"again",seed,first});mpBegin(seed,first)}
+function mpAgain(){
+  if(!over)return;
+  if(MP.roster.some(p=>p.gone)){setMode("cpu");return}
+  if(MP.host)hostRestart();else{mpSend({t:"want"});gmNotice("Menunggu host memulai ronde baru...")}
+}
+function mpAbort(T,S){over=true;busy=true;mpRefresh();say(S,"you");$("#ovT").textContent=T;$("#ovS").textContent=S;$("#ov").classList.add("on")}
+MP.onMsg=d=>{
+  if(d.t==="hi"&&MP.host){
+    if(MP.started){mpSend({t:"full",to:d.cid});return}
+    let p=MP.roster.find(x=>x.cid===d.cid);
+    if(!p){
+      if(MP.roster.length>=4){mpSend({t:"full",to:d.cid});return}
+      let nm=cleanN(d.name),k=2;while(MP.roster.some(x=>x.name===nm))nm=cleanN(d.name)+" "+k++;
+      MP.roster.push({cid:d.cid,pid:d.pid,name:nm});
+    }
+    mpSend({t:"roster",list:MP.roster});showLobby();return;
+  }
+  if(d.t==="roster"&&!MP.host){
+    MP.roster=(d.list||[]).map(p=>({cid:p.cid,pid:p.pid,name:cleanN(p.name)}));
+    if(MP.roster.some(p=>p.cid===MP.cid)){MP.joined=true;showLobby()}return;
+  }
+  if(d.t==="full"){if(d.to===MP.cid)info("Room ini sudah penuh atau game sudah dimulai.");return}
+  if(d.t==="start"&&!MP.host&&!MP.started){if(!Array.isArray(d.order)||!d.order.includes(MP.cid))return;MP.started=true;MP.order=d.order;mpBegin(d.seed,d.first||0);return}
+  if(d.t==="again"&&!MP.host&&MP.started&&over){mpBegin(d.seed,d.first);return}
+  if(d.t==="want"&&MP.host&&MP.started&&over){hostRestart();return}
+  if(!MP.started)return;
+  if(d.t==="act")remoteAct(d);
+};
+MP.peerEv=ev=>{
+  const p=MP.roster.find(x=>x.pid===ev.id);
+  if(!MP.started){
+    if(ev.state==="left"&&p){
+      if(!MP.host&&p.cid===MP.roster[0].cid){info("Host keluar dari room. Buat atau gabung room lain.");MP.joined=false;MP.roster=[];return}
+      MP.roster=MP.roster.filter(x=>x!==p);if(MP.host){mpSend({t:"roster",list:MP.roster});showLobby()}
+    }
+    return;
+  }
+  const nm=p?p.name:"Temanmu";
+  if(ev.state==="offline")gmNotice(nm+" terputus. Menunggu dia kembali...");
+  else if(ev.state==="online")gmNotice(nm+" tersambung lagi.");
+  else if(ev.state==="left"&&p&&!p.gone){
+    p.gone=true;gmNotice(nm+" keluar dari game.");
+    if(!over){const sisa=MP.order.filter(c=>{const q=MP.roster.find(x=>x.cid===c);return q&&!q.gone&&c!==MP.cid}).length;
+      mpAbort(sisa===0?"Kamu menang!":"Permainan dibatalkan",nm+" keluar dari permainan.")}
+  }
+};
+function setMode(m){
+  if(m===mode)return;
+  if(mode==="mp"&&MP.started&&!over&&window.gmResult)window.gmResult("lose");
+  mode=m;mpOff();MPG.on=false;RNG=Math.random;setCols();
+  document.querySelectorAll("#md .btn").forEach(n=>n.classList.toggle("on",n.dataset.m===m));
+  $("#mp").hidden=m!=="mp";$("#seg").hidden=m==="mp";$("#mpc").hidden=false;$("#mpstart").hidden=true;info("");
+  if(m==="mp"){showGame(false);if($("#ov"))$("#ov").classList.remove("on")}else{showGame(true);newGame()}
+}
+$("#md").onclick=e=>{const t=e.target.closest(".btn");if(t)setMode(t.dataset.m)};
+function showGame(v){GAMEEL.forEach(s=>document.querySelectorAll(s).forEach(e=>{e.hidden=!v}));if(typeof afterShow==="function")afterShow()}
+const GAMEEL=["#opps",".mejaw","#hand","#st",".emo"];
+const mpRefresh=()=>render();const setCols=()=>{};
+function remoteAct(d){
+  const li=(d.seat-MPG.seat+P)%P;if(over||li===0||li!==cur)return;
+  if(d.k==="place"){const i=hands[li].findIndex(t=>(t.x===d.x&&t.y===d.y)||(t.x===d.y&&t.y===d.x));if(i>=0)place(li,i,d.side)}
+  else if(d.k==="pass")doPass(li);
+}
+
 newGame();
 /* ---------- Reaksi emoji ---------- */
 (()=>{
@@ -227,7 +352,7 @@ newGame();
   let last=0,lastSp=0,was=false;
   const inMp=()=>typeof mode!=="undefined"&&mode==="mp"&&typeof MP!=="undefined"&&!!MP.room;
   bar.onclick=ev=>{const b=ev.target.closest("button");if(!b)return;const t=Date.now();if(t-last<900)return;last=t;fly(b.dataset.e,ME,true);if(inMp())mpSend({t:"emo",e:b.dataset.e});else if(Math.random()<.6)setTimeout(botSay,700+Math.random()*800)};
-  if(typeof MP!=="undefined"&&MP&&MP.onMsg){const o=MP.onMsg;MP.onMsg=d=>{if(d.t==="emo"){if(d.cid===MP.peer)fly(d.e,"Temanmu",false);return}o(d)}}
+  if(typeof MP!=="undefined"&&MP&&MP.onMsg){const o=MP.onMsg;MP.onMsg=d=>{if(d.t==="emo"){const q=MP.roster&&MP.roster.find(x=>x.cid===d.cid);if(q)fly(d.e,q.name,false);return}o(d)}}
   new MutationObserver(()=>{const f=st.classList.contains("foe");if(f&&!was&&!inMp()&&Date.now()-lastSp>8000&&Math.random()<.12){lastSp=Date.now();setTimeout(botSay,700+Math.random()*900)}was=f}).observe(st,{attributes:true,attributeFilter:["class"]});
 })();
 /* ---------- HUD: cara main dan win streak ---------- */
